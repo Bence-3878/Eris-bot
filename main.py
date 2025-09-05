@@ -16,8 +16,9 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    print('Sziasztok itt vagyok')
     print(bot.user.name)
     print(bot.user.id)
+
+
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
