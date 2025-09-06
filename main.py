@@ -4,6 +4,15 @@ import logging
 from dotenv import load_dotenv
 import os
 import random
+import mysql.connector
+
+leveldb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="alma",
+    database="leveldb",
+    port=3306
+)
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -33,7 +42,8 @@ def px(s):
 async def on_message(message):
     if message.author.bot:
         return
-    await message.channel.send(px(message.content))
+
+
 
 
 
