@@ -43,7 +43,10 @@ async def on_message(message):
     if message.author.bot:
         return
 
-
+@client.event
+async def on_member_join(member):
+    channel = client.get_channel(1411685718740303872)
+    await channel.send(f"Üdvözöllek {member.mention} ezen a szerveren!")
 
 
 
