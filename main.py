@@ -12,13 +12,21 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
 
-@bot.event
+client = discord.Client(intents=intents)
+
+@client.event
 async def on_ready():
-    print(bot.user.name)
-    print(bot.user.id)
+    print(client.user.name)
+    print(client.user.id)
+
+@client.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    await message.channel.send(message.content)
 
 
 
-bot.run(token, log_handler=handler, log_level=logging.DEBUG)
+
+client.run(token, log_handler=handler, log_level=logging.DEBUG)
