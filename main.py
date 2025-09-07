@@ -1,3 +1,5 @@
+from Tools.scripts.summarize_stats import pretty
+
 import discord
 from discord.ext import commands
 import logging
@@ -27,6 +29,15 @@ intents.members = True
 
 client = discord.Client(intents=intents)
 
+
+level1 = 100
+levelq = 1.05
+levels = [0,level1]
+for i in range(1,100):
+    n = int(level1*math.pow(levelq,i))
+    m = levels[i] + n
+    levels.append(m)
+
 ######################init##########################
 
 @client.event
@@ -44,6 +55,16 @@ def gPX(s):
     return n
 
 
+def level(xp):
+    l=0
+    for level in levels:
+        if level > xp:
+            return l-1
+        l += 1
+    return 0
+
+
+
 
 @client.event
 async def on_message(message):
@@ -53,18 +74,26 @@ async def on_message(message):
     if message.content.startswith('?help'):
         pass
     elif message.content.startswith('?level'):
-        pass
+        cursor = leveldb.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
+        result = cursor.fetchone()
+        await message.channel.send('szintje: ' + str(level(result[1])))
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
-        cursor.execute('SELECT user_xp FROM users WHERE id = ' + str(message.author.id,))
+        cursor.execute('SELECT user_xp, level FROM users WHERE id = ' + str(message.author.id,))
         result = cursor.fetchall()
         if (len(result) == 0):
             cursor.execute('INSERT INTO users VALUES (' + str(message.author.id) + ',' + str(xp) + ',0)')
             leveldb.commit()
         elif (len(result) == 1):
+            currenXP = result[0][0] + xp
+            if result[0][1] < level(currenXP):
+                channel = client.get_channel(1414239240195149875)
+                await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
             cursor.execute(
-                'UPDATE users SET user_xp = user_xp + ' + str(xp) + ' WHERE id = ' + str(message.author.id, ))
+                'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
+            str(level(currenXP)) + ' WHERE id = ' + str(message.author.id, ))
             leveldb.commit()
 
 
