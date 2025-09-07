@@ -77,6 +77,12 @@ async def on_message(message):
                                    + 'ennyi xp kell a következő szinthez: '
                                    + str(result[1]-levels[result[2]]) + '/' + str(levels[result[2]+1]-levels[result[2]])
                                    + '\nösszes xp: ' + str(result[1]))
+    elif message.content.startswith('?top'):
+        cursor = leveldb.cursor()
+        cursor.execute('SELECT * FROM users ORDER BY user_xp DESC LIMIT 10;')
+        result = cursor.fetchall()
+    elif message.content.startswith('?test'):
+        await message.channel.send('test')
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
@@ -90,6 +96,7 @@ async def on_message(message):
             if result[0][1] < level(currenXP):
                 channel = client.get_channel(1414239240195149875)
                 await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
+                await message.author.send(str(level(currenXP)) + '.szintű lett')
             cursor.execute(
                 'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
             str(level(currenXP)) + ' WHERE id = ' + str(message.author.id, ))
