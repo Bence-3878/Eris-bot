@@ -79,9 +79,8 @@ async def on_message(message):
             cursor.execute('INSERT INTO users VALUES (' + str(message.author.id) + ',' + str(xp) + ',0)')
             leveldb.commit()
         elif (len(result) == 1):
-            currenXP = result[0][0] + xp
-            cursor.execute('UPDATE users SET user_xp = ' + currenXP + 'level = ' + level(currenXP) +
-                                                    ' WHERE id = ' + str(message.author.id,))
+            cursor.execute(
+                'UPDATE users SET user_xp = user_xp + ' + str(xp) + ' WHERE id = ' + str(message.author.id, ))
             leveldb.commit()
 
 
