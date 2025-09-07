@@ -1,5 +1,3 @@
-from Tools.scripts.summarize_stats import pretty
-
 import discord
 from discord.ext import commands
 import logging
@@ -7,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import random
 import mysql.connector
+import math
 
 ######################import##########################
 
@@ -89,7 +88,7 @@ async def on_message(message):
         elif (len(result) == 1):
             currenXP = result[0][0] + xp
             if result[0][1] < level(currenXP):
-                channel = client.get_channel(1414239240195149875)
+                channel = client.get_channel(1411688050785783828)
                 await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
             cursor.execute(
                 'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
