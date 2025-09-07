@@ -76,7 +76,10 @@ async def on_message(message):
         cursor = leveldb.cursor()
         cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
         result = cursor.fetchone()
-        await message.channel.send('szintje: ' + str(level(result[1])))
+        await message.channel.send('szintje: ' + str(result[2]) +'\n'
+                                   + 'ennyi xp kell a következő szinthez: '
+                                   + str(result[1]-levels[result[2]]) + '/' + str(levels[result[2]+1]-levels[result[2]])
+                                   + '\nösszes xp: ' + str(result[1]))
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
