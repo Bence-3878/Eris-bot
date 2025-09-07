@@ -81,6 +81,22 @@ async def on_message(message):
         cursor = leveldb.cursor()
         cursor.execute('SELECT * FROM users ORDER BY user_xp DESC LIMIT 10;')
         result = cursor.fetchall()
+        embed = discord.Embed(
+            title="top lista",
+            description="a legtöbb üzenet küldő emberek listája",
+            color=discord.Color.blue()
+        )
+
+        for row in result:
+            embed.add_field(
+                name='<@' + str(row[0]) + '>',
+                value=row[1],
+                inline=False
+            )
+
+        await message.channel.send(embed=embed)
+
+
     elif message.content.startswith('?test'):
         await message.channel.send('test')
     else:
