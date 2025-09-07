@@ -1,3 +1,5 @@
+from Tools.scripts.summarize_stats import pretty
+
 import discord
 from discord.ext import commands
 import logging
@@ -54,13 +56,14 @@ def gPX(s):
 
 def level(xp):
     l=0
-    print(xp)
     for level in levels:
-        print(level)
         if level > xp:
             return l-1
         l += 1
     return 0
+
+def levelup(level):
+    print("level up")
 
 
 @client.event
@@ -78,14 +81,18 @@ async def on_message(message):
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
-        cursor.execute('SELECT user_xp FROM users WHERE id = ' + str(message.author.id,))
+        cursor.execute('SELECT user_xp, level FROM users WHERE id = ' + str(message.author.id,))
         result = cursor.fetchall()
         if (len(result) == 0):
             cursor.execute('INSERT INTO users VALUES (' + str(message.author.id) + ',' + str(xp) + ',0)')
             leveldb.commit()
         elif (len(result) == 1):
+            currenXP = result[0][0] + xp
+            if result[0][1] < level(currenXP):
+                levelup(result[0][1])
             cursor.execute(
-                'UPDATE users SET user_xp = user_xp + ' + str(xp) + ' WHERE id = ' + str(message.author.id, ))
+                'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
+            str(level(currenXP)) + ' WHERE id = ' + str(message.author.id, ))
             leveldb.commit()
 
 
