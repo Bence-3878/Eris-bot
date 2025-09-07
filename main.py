@@ -33,6 +33,7 @@ intents.members = True
 
 client = discord.Client(intents=intents)
 
+
 level1 = 100
 levelq = 1.05
 levels = [0,level1]
@@ -40,8 +41,6 @@ for i in range(1,100):
     n = int(level1*math.pow(levelq,i))
     m = levels[i] + n
     levels.append(m)
-
-######################init##########################
 
 admin_id = 543856425131180036
 
@@ -54,8 +53,8 @@ def gPX(s):
         n = 50 + random.randint(-5, 5)
     return n
 
+
 def level(xp):
-    # xp -> szint (max olyan i, hogy levels[i] <= xp)
     if xp < 0:
         return 0
     l = 0
@@ -64,13 +63,12 @@ def level(xp):
             return max(0, i - 1)
         l = i
     return l
-# ... existing code ...
 
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
-
+    return
 
 
 
@@ -91,7 +89,22 @@ async def on_guild_join(guild: discord.Guild):
 
     if leveldb is not None:
         cursor = leveldb.cursor()
-        try:
+        cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
+        result = cursor.fetchone()
+        await message.channel.send('szintje: ' + str(level(result[1])))
+    else:
+        xp = gPX(message.content)
+        cursor = leveldb.cursor()
+        cursor.execute('SELECT user_xp, level FROM users WHERE id = ' + str(message.author.id,))
+        result = cursor.fetchall()
+        if (len(result) == 0):
+            cursor.execute('INSERT INTO users VALUES (' + str(message.author.id) + ',' + str(xp) + ',0)')
+            leveldb.commit()
+        elif (len(result) == 1):
+            currenXP = result[0][0] + xp
+            if result[0][1] < level(currenXP):
+                channel = client.get_channel(1411688050785783828)
+                await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
             cursor.execute(
                 'INSERT INTO servers (id, welcome_ch, level_up_ch, level_sys) VALUES (%s, %s, %s, %s)',
                 (guild.id, None, None, False)
