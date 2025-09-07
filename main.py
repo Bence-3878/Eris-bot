@@ -90,6 +90,7 @@ async def on_message(message):
             if result[0][1] < level(currenXP):
                 channel = client.get_channel(1414239240195149875)
                 await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
+                await message.author.send(str(level(currenXP)) + '.szintű lett')
             cursor.execute(
                 'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
             str(level(currenXP)) + ' WHERE id = ' + str(message.author.id, ))

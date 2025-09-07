@@ -1,1 +1,2 @@
-# dcbot
+# Eris Bot
+
