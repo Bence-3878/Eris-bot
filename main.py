@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import random
 import mysql.connector
+import math
 
 ######################import##########################
 
@@ -27,6 +28,11 @@ intents.members = True
 
 client = discord.Client(intents=intents)
 
+level1 = 100
+levelq = 1.05
+levels = []
+for i in range(100):
+    levels.append(int(level1*math.pow(levelq,i)))
 ######################init##########################
 
 @client.event
@@ -43,6 +49,12 @@ def gPX(s):
         n = 50 + random.randint(-5, 5)
     return n
 
+def level(xp):
+    level = math.int(math.log(xp/level1, levelq))
+    if level > 0:
+        return level
+    else:
+        return 0
 
 
 @client.event
@@ -53,7 +65,11 @@ async def on_message(message):
     if message.content.startswith('?help'):
         pass
     elif message.content.startswith('?level'):
-        pass
+        print('a')
+        cursor = leveldb.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
+        result = cursor.fetchone()
+        message.channel.send('szint:' + str(result[0][0]))
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
