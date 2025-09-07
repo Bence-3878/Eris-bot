@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import os
 import random
 import mysql.connector
-import math
 
 ######################import##########################
 
@@ -29,6 +28,7 @@ intents.message_content = True
 intents.members = True
 
 client = discord.Client(intents=intents)
+
 
 level1 = 100
 levelq = 1.05
@@ -54,6 +54,7 @@ def gPX(s):
         n = 50 + random.randint(-5, 5)
     return n
 
+
 def level(xp):
     l=0
     for level in levels:
@@ -61,6 +62,7 @@ def level(xp):
             return l-1
         l += 1
     return 0
+
 
 
 
