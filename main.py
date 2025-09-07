@@ -30,9 +30,12 @@ client = discord.Client(intents=intents)
 
 level1 = 100
 levelq = 1.05
-levels = []
-for i in range(100):
-    levels.append(int(level1*math.pow(levelq,i)))
+levels = [0,level1]
+for i in range(1,100):
+    n = int(level1*math.pow(levelq,i))
+    m = levels[i] + n
+    levels.append(m)
+
 ######################init##########################
 
 @client.event
@@ -50,11 +53,14 @@ def gPX(s):
     return n
 
 def level(xp):
-    level = math.int(math.log(xp/level1, levelq))
-    if level > 0:
-        return level
-    else:
-        return 0
+    l=0
+    print(xp)
+    for level in levels:
+        print(level)
+        if level > xp:
+            return l-1
+        l += 1
+    return 0
 
 
 @client.event
@@ -68,7 +74,7 @@ async def on_message(message):
         cursor = leveldb.cursor()
         cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
         result = cursor.fetchone()
-        print(result[2])
+        await message.channel.send('szintje: ' + str(level(result[1])))
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
