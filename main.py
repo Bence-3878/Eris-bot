@@ -65,11 +65,10 @@ async def on_message(message):
     if message.content.startswith('?help'):
         pass
     elif message.content.startswith('?level'):
-        print('a')
         cursor = leveldb.cursor()
         cursor.execute('SELECT * FROM users WHERE id = ' + str(message.author.id,))
         result = cursor.fetchone()
-        message.channel.send('szint:' + str(result[0][0]))
+        print(result[2])
     else:
         xp = gPX(message.content)
         cursor = leveldb.cursor()
