@@ -6,12 +6,15 @@ import os
 import random
 import mysql.connector
 
+######################import##########################
+
 leveldb = mysql.connector.connect(
     host="localhost",
     user="root",
     password="alma",
-    database="leveldb",
-    port=3306
+    database="levels",
+    port=3306,
+    auth_plugin='mysql_native_password'
 )
 
 load_dotenv()
@@ -22,15 +25,18 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-
 client = discord.Client(intents=intents)
+
+######################init##########################
 
 @client.event
 async def on_ready():
     print(client.user.name)
     print(client.user.id)
+    print(leveldb)
+    print(discord.__version__)
 
-def px(s):
+def gPX(s):
     n = len(s)
     n = n + random.randint(-3, 5)
     if n>50:
@@ -42,6 +48,26 @@ def px(s):
 async def on_message(message):
     if message.author.bot:
         return
+
+    if message.content.startswith('?help'):
+        pass
+    elif message.content.startswith('?level'):
+        pass
+    else:
+        xp = gPX(message.content)
+        cursor = leveldb.cursor()
+        cursor.execute('SELECT user_xp FROM users WHERE id = ' + str(message.author.id,))
+        result = cursor.fetchall()
+        if (len(result) == 0):
+            cursor.execute('INSERT INTO users VALUES (' + str(message.author.id) + ',' + str(xp) + ',0)')
+            leveldb.commit()
+        elif (len(result) == 1):
+            cursor.execute('UPDATE users SET user_xp = user_xp + ' + str(xp) + ' WHERE id = ' + str(message.author.id,))
+            leveldb.commit()
+
+
+
+
 
 @client.event
 async def on_member_join(member):
