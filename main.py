@@ -62,8 +62,6 @@ def level(xp):
         l += 1
     return 0
 
-def levelup(level):
-    print("level up")
 
 
 @client.event
@@ -89,7 +87,8 @@ async def on_message(message):
         elif (len(result) == 1):
             currenXP = result[0][0] + xp
             if result[0][1] < level(currenXP):
-                levelup(result[0][1])
+                channel = client.get_channel(1414239240195149875)
+                await channel.send(f"{message.author.mention}  {level(currenXP)}.szintű lett")
             cursor.execute(
                 'UPDATE users SET user_xp = ' + str(currenXP) + ',level = ' +
             str(level(currenXP)) + ' WHERE id = ' + str(message.author.id, ))
