@@ -1,16 +1,16 @@
-import discord  # A discord.py könyvtár importálása a Discord bot működtetéséhez
-# from discord.ext import commands  # Alternatív, parancsos kiterjesztés (jelenleg kikommentezve)
-import logging  # Naplózás a hibák és események rögzítéséhez
-from dotenv import load_dotenv  # .env fájlból környezeti változók betöltéséhez
-import os  # Operációs rendszerrel való interakció (környezeti változók, fájlok)
-import random  # Véletlenszám-generálás (XP számításhoz)
-# import mysql.connector  # MySQL csatlakozó (alább dinamikusan importáljuk)
-import math  # Matematikai műveletek (hatványozás a szintgörbéhez)
+import discord  # Discord bot kliens
+# from discord.ext import commands
+import logging  # Naplózás
+from dotenv import load_dotenv  # .env betöltés
+import os  # Környezeti változók
+import random  # Véletlen XP
+# import mysql.connector
+import math  # Szintgörbe számításhoz
 
-######################import##########################  # Szekció jelölő, logikai elválasztás
+######################import##########################
 
 try:  # Megkíséreljük az adatbázis-kapcsolat létrehozását
-    import mysql.connector  # később kell a típusokhoz is  # MySQL kliens importálása
+    import mysql.connector # MySQL kliens importálása
     leveldb = mysql.connector.connect(  # Csatlakozás a MySQL adatbázishoz
         host="localhost",  # Adatbázis szerver címe
         user="root",  # Adatbázis felhasználónév
@@ -41,7 +41,9 @@ for i in range(1,100):  # 1-től 99-ig generálunk küszöböket (összesen 100 
     m = levels[i] + n  # Következő szint össz-XP küszöb (kumulált)
     levels.append(m)  # Hozzáadás a listához
 
-######################init##########################  # Inicializálás szekció vége/jelölése
+admin_id = 543856425131180036
+
+######################init##########################
 
 @client.event  # Eseménykezelő regisztrálása a klienshez
 async def on_ready():  # Akkor fut, amikor a bot sikeresen csatlakozott és készen áll
@@ -50,24 +52,23 @@ async def on_ready():  # Akkor fut, amikor a bot sikeresen csatlakozott és kés
     print(leveldb)  # DB kapcsolat objektum kiírása (debug)
     print(discord.__version__)  # discord.py verzió kiírása
 
-def gPX(s):  # Heurisztaikus XP-kalkulátor egy üzenethez
-    n = len(s)  # Alap XP az üzenet hosszából
-    n = n + random.randint(-3, 5)  # Véletlen zaj hozzáadása (-3 és +5 között)
-    if n>50:  # Ha túl nagy az érték (spam limitálás)
-        n = 50 + random.randint(-5, 5)  # Levágás 50 körül kis szórással
-    return n  # Visszatérés a számolt XP-vel
+def gPX(s):  # Heurisztikus XP egy üzenetre
+    n = len(s) + random.randint(-3, 5)
+    if n > 50:
+        n = 50 + random.randint(-5, 5)
+    return n
 
 def level(xp):  # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
-    # xp -> szint (max olyan i, hogy levels[i] <= xp)  # Magyarázó komment az algoritmusról
-    if xp < 0:  # Negatív XP esetén
-        return 0  # Visszaadjuk a 0. szintet
-    l = 0  # Alapértelmezett utolsó ismert szint
-    for i, threshold in enumerate(levels):  # Végigmegyünk a küszöbökön
-        if xp < threshold:  # Ha az XP kisebb a küszöbnél
-            return max(0, i - 1)  # Az előző index a tényleges szint
-        l = i  # Frissítjük az utolsó ismert szint indexét
-    return l  # Ha minden küszöböt elérte, visszatérünk a legmagasabbal
-# ... existing code ...  # Helykitöltő komment a fájl egyéb részeire
+    # xp -> szint
+    if xp < 0:
+        return 0
+    l = 0
+    for i, threshold in enumerate(levels):
+        if xp < threshold:
+            return max(0, i - 1)
+        l = i
+    return l
+# ... existing code ...
 
 @client.event  # Üzenetekre reagáló eseménykezelő
 async def on_message(message):  # Minden bejövő üzenetre lefut (DM és szerver)
@@ -76,7 +77,9 @@ async def on_message(message):  # Minden bejövő üzenetre lefut (DM és szerve
 
     if message.content.startswith('?help'):  # Egyszerű help parancs felismerése
         pass  # Jelenleg nincs implementálva
-# ... existing code ...  # Helykitöltő
+# ... existing code ...
+
+
     elif message.content.startswith('?level'):  # Szint lekérdezése parancs
         if leveldb is None:  # Ha nincs adatbázis kapcsolat
             await message.channel.send('Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.')  # Visszajelzés a felhasználónak
@@ -92,12 +95,14 @@ async def on_message(message):  # Minden bejövő üzenetre lefut (DM és szerve
             cursor.close()  # Kuren lezárása erőforrás-felszabadítás miatt
         if result is None:  # Ha nincs adat a felhasználóról
             await message.channel.send('Még nincs adatod ebben a szerverben.')  # Tájékoztatás
-            return  # Kilépés
+            return
         await message.channel.send('szintje: ' + str(result[2]) +'\n'  # Üzenet a szintről
                                    + 'ennyi xp kell a következő szinthez: '  # Kiegészítő információ
                                    + str(result[1]-levels[result[2]]) + '/' + str(levels[result[2]+1]-levels[result[2]])  # Haladás a következő küszöbig
                                    + '\nösszes xp: ' + str(result[1]))  # Összesített XP kijelzése
-# ... existing code ...  # Helykitöltő
+# ... existing code ...
+
+
     elif message.content.startswith('?top'):  # Toplista parancs
         if leveldb is None:  # DB nélkül nem megy
             await message.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
@@ -145,8 +150,8 @@ async def on_message(message):  # Minden bejövő üzenetre lefut (DM és szerve
             if row is None:  # Ha új felhasználó ezen a szerveren
                 try:  # Beszúrás próbálkozás
                     cursor.execute(  # Új rekord létrehozása kezdő értékekkel
-                        'INSERT INTO server_users (id, user_xp, level, server_id) VALUES (%s, %s, %s, %s)',
-                        (message.author.id, xp, 0, message.guild.id)
+                        'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                        (message.author.id, message.guild.id, xp, 0)
                     )
                     leveldb.commit()  # Tranzakció véglegesítése
                 except mysql.connector.Error as e:  # DB hiba esetén
