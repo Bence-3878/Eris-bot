@@ -36,7 +36,7 @@ client = discord.Client(intents=intents)            # Discord kliens példány l
 
 level1 = 100                                        # Kiinduló XP költség az első szinthez
 levelq = 1.05                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
-levels = [0,level1]                                 # Szintküszöbök listája; 0. index: 0 XP, 1. index: első szinthez szükséges össz-XP
+levels = [0,level1]
 for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
     m = levels[i] + n                               # Következő szint össz-XP küszöb (kumulált)
@@ -139,10 +139,13 @@ async def on_message(message):                      # Minden bejövő üzenetre 
 # ... existing code ...                             # Helykitöltő
     else:                                           # Minden más üzenet esetén XP kezelés
         if leveldb is None:                         # Ha nincs DB, nem számolunk XP-t
-            return                                  # Kilépés
+            return
         xp = gPX(message.content)                   # XP becslés az üzenet tartalmából
         cursor = leveldb.cursor()                   # Kurzor nyitása
+
         try:                                        # Adatbázis műveletek védett része
+            cursor.execute('select * from servers where id = %s', (message.guild.id,))
+            row1 = cursor.fetchone()
             cursor.execute(                         # Meglévő adatok lekérdezése
                 'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
                 (message.author.id, message.guild.id)
@@ -163,13 +166,14 @@ async def on_message(message):                      # Minden bejövő üzenetre 
                 new_level = level(current_xp)       # Új szint meghatározása
                 try:                                # Frissítés és szintlépés kezelése
                     if row[1] < new_level:          # Ha szintet lépett a felhasználó
-                        channel = client.get_channel(1414239240195149875)  # Kijelölt szintlépés csatorna lekérése (ID alapján)
+                        channel = client.get_channel(row1[2])  # Kijelölt szintlépés csatorna lekérése (ID alapján)
                         if channel is not None:     # Ha a csatorna elérhető
                             await channel.send(f"{message.author.mention} {new_level}. szintű lett")  # Publikus gratuláció
-                        try:                        # Privát üzenet küldése
-                            await message.author.send(f"{new_level}. szintű lettél")  # DM értesítés
-                        except Exception:           # Ha nem sikerül DM-et küldeni (pl. tiltva)
-                            pass                    # Néma elnyelés
+                        if row1[3] == 1:
+                            try:                        # Privát üzenet küldése
+                                await message.author.send(f"{new_level}. szintű lettél")  # DM értesítés
+                            except Exception:           # Ha nem sikerül DM-et küldeni (pl. tiltva)
+                                pass                    # Néma elnyelés
                     cursor.execute(                 # Felhasználó rekordjának frissítése
                         'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
                         (current_xp, new_level, message.author.id, message.guild.id)
