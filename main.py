@@ -10,7 +10,7 @@ import math
 ######################import##########################
 
 try:
-    import mysql.connector  # később kell a típusokhoz is
+    import mysql.connector
     leveldb = mysql.connector.connect(
         host="localhost",
         user="root",
@@ -114,12 +114,12 @@ async def on_guild_join(guild: discord.Guild):
             cursor.close()
 
 
-@client.event  # Eseménykezelő regisztráció
-async def on_member_join(member):  # Akkor fut, amikor új tag csatlakozik egy szerverhez
-    channel = client.get_channel(1411685718740303872)  # Üdvözlő csatorna lekérése ID alapján
-    if channel is not None:  # Ha csatorna létezik és elérhető
-        await channel.send(f"Üdvözöllek {member.mention} ezen a szerveren!")  # Üdvözlő üzenet az új tagnak
-# ... existing code ...  # Helykitöltő
+@client.event
+async def on_member_join(member):
+    channel = client.get_channel(1411685718740303872)
+    if channel is not None:
+        await channel.send(f"Üdvözöllek {member.mention} ezen a szerveren!")
+
 
 @client.event
 async def on_member_join(member):
