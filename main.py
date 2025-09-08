@@ -72,12 +72,10 @@ async def on_message(message):
 
 
 
-# Esemény: a bot bekerül egy új szerverre
+
 @client.event
 async def on_guild_join(guild: discord.Guild):
-    # Itt futtasd a saját "parancsod" (setup/inicializálás) logikát
-    # Példa: üzenet küldése egy alkalmas csatornába
-    channel = guild.system_channel
+   channel = guild.system_channel
     if channel is None:
         for ch in guild.text_channels:
             if ch.permissions_for(guild.me).send_messages:
