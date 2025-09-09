@@ -53,8 +53,8 @@ intents.members = True                              # Tag események engedélyez
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 
-level1 = 100                                        # Kiinduló XP költség az első szinthez
-levelq = 1.05                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
+level1 = 200                                        # Kiinduló XP költség az első szinthez
+levelq = 1.1                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
 levels = [0,level1]
 for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
@@ -170,7 +170,7 @@ async def other_messege(message: discord.Message):
                 leveldb.commit()  # Tranzakció véglegesítése
 
                 # Szintlépés értesítés csak sikeres commit után
-                if row[1] < new_level:
+                if row[1] < new_level and row1[1] == 1:
                     channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
                     try:
                         await message.author.send(f"{new_level}. szintű lettél")
@@ -870,6 +870,13 @@ async def slash_test(interaction: discord.Interaction, text: str):
 async def ping(interaction: discord.Interaction):
     """Displays bot latency"""
     await interaction.response.send_message(f"Pong! Bot latency: {round(client.latency * 1000)}ms")
+
+#send_group = app_commands.Group(name="sand", description="üzenet")
+@tree.command(name="send", )
+@app_commands.describe(type=app_commands.Choice(name='DM vagy server', value='dm_szeró'))
+async def send(interaction: discord.Interaction, type: app_commands.Choice[str]):
+    pass
+
 
 # Help message constant
 HELP_MESSAGE = """**Bot Parancsok**
