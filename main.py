@@ -140,7 +140,21 @@ async def other_messege(message: discord.Message):
             except mysql.connector.Error as e:  # DB hiba esetén
                 leveldb.rollback()  # Visszagörgetés
                 await message.channel.send(f'Hiba az adatbázis beszúráskor: {e.msg}')  # Hibaüzenet
-
+                try:
+                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                    if admin_user is not None:
+                        guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
+                        channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
+                                                                          and getattr(message.channel, "name",
+                                                                                      None)) else "#ismeretlen-csatorna"
+                        await admin_user.send(
+                            f"XP rendszer hiba újelem beszúrásánál\n"
+                            f"Váratlan hiba történt: {str(e)}"
+                            f"Hely: {guild_name} | {channel_name}\n"
+                            f"Küldő: {message.user} (ID: {message.user.id})"
+                        )
+                except Exception as dm_err:
+                    print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
 
         else:  # Ha már létezik rekord
             current_xp = row[0] + xp  # Új összesített XP kiszámítása
@@ -169,7 +183,23 @@ async def other_messege(message: discord.Message):
                         await message.channel.send(f"{message.author.mention} {new_level}. szintű lett")
             except mysql.connector.Error as e:
                 leveldb.rollback()  # Visszagörgetés
-                await message.channel.send(f'Hiba frissítés közben: {e.msg}')  # Hibaüzenet
+                try:
+                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                    if admin_user is not None:
+                        guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
+                        channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
+                                                                          and getattr(message.channel, "name",
+                                                                                      None)) else "#ismeretlen-csatorna"
+                        await admin_user.send(
+                            f"Hiba XP frissítés közben\n"
+                            f"Váratlan hiba történt: {str(e)}"
+                            f"Hely: {guild_name} | {channel_name}\n"
+                            f"Küldő: {message.user} (ID: {message.user.id})"
+                        )
+                except Exception as dm_err:
+                    print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+                
     except mysql.connector.Error as e:
         await message.channel.send(f'Hiba frissítés közben: {e.msg}')
 
@@ -687,7 +717,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
                     f"Parancs: {interaction.command.name}\n"
-                    f"Adatbázis hiba: {e.msg}"
+                    f"Adatbázis hiba: {e.msg}\n"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
                 )
@@ -709,7 +739,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
                     f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
+                    f"Váratlan hiba történt: {str(e)}\n"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
                 )
@@ -746,10 +776,10 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
         f'Összes XP: {total_xp}'
     )
 
-# SLASH parancs: /level [user]
+# SLASH parancs: /global_level [user]
 @tree.command(name="global_level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def slash_level(interaction: discord.Interaction, user: discord.Member | None = None):
+async def slash_global_level(interaction: discord.Interaction, user: discord.Member | None = None):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -762,7 +792,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
     try:
         cursor.execute(
             'SELECT COALESCE(SUM(su.user_xp), 0) AS total_xp FROM server_users su WHERE su.id = %s;',
-            (target.id)
+            (target.id,)
         )
         result = cursor.fetchone()
     except mysql.connector.Error as e:
@@ -776,7 +806,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
                     f"Parancs: {interaction.command.name}\n"
-                    f"Adatbázis hiba: {e.msg}"
+                    f"Adatbázis hiba: {e.msg}\n"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
                 )
@@ -798,7 +828,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
                     f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
+                    f"Váratlan hiba történt: {str(e)}\n"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
                 )
@@ -812,15 +842,9 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
     finally:
         cursor.close()
 
-    if result is None:
-        await interaction.response.send_message(
-            f'{target.mention} még nem rendelkezik adatokkal ezen a szerveren.',
-            ephemeral=True
-        )
-        return
 
-    lvl = int(result[2])
-    total_xp = int(result[1])
+    total_xp = int(result[0])
+    lvl = level(total_xp)
     # Szint progressz
     if lvl + 1 < len(levels):
         have = total_xp - levels[lvl]
@@ -834,7 +858,6 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
         f'Következő szinthez: {have}/{need}\n'
         f'Összes XP: {total_xp}'
     )
-
 
 
 @tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
