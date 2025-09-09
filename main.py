@@ -871,6 +871,7 @@ async def ping(interaction: discord.Interaction):
     """Displays bot latency"""
     await interaction.response.send_message(f"Pong! Bot latency: {round(client.latency * 1000)}ms")
 
+
 send_group = app_commands.Group(name="send", description="üzenet")
 
 @send_group.command(name="dm")
@@ -976,6 +977,7 @@ async def send_server(interaction: discord.Interaction, text: str, channel: disc
         )
 
 tree.add_command(send_group)
+
 
 
 # Help message constant
