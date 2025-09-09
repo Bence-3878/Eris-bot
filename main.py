@@ -51,11 +51,21 @@ admin_id = 543856425131180036                       # Az admin fő fiókjának I
 #####################################################init###############################################################
 
 
-def gPX(s):                                         # Heurisztikus XP egy üzenetre
-    n = len(s) + random.randint(-3, 5)
+def gPX(message: discord.Message):                                         # Heurisztikus XP egy üzenetre
+    # Képes üzenet detektálása (csatolmányok)
+    m = 0
+    if any(
+            (a.content_type and a.content_type.startswith('image/')) or
+            (a.filename and a.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')))
+            for a in message.attachments
+    ):
+        m = random.randint(10, 30)
+    if message.content is None:
+        return m
+    n = len(message.content) + random.randint(-3, 5)
     if n > 50:
         n = 50 + random.randint(-5, 5)
-    return n
+    return n + m
 
 def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
     if xp < 0:
@@ -155,7 +165,7 @@ async def other_messege(message: discord.Message):
     if message.guild is None:
         return
     # Ne legyen negatív XP
-    xp = gPX(message.content)  # XP becslés az üzenet tartalmából
+    xp = gPX(message)  # XP becslés az üzenet tartalmából
     cursor = leveldb.cursor()
 
 
@@ -238,15 +248,8 @@ async def on_message(message):                      # Minden bejövő üzenetre 
     if message.author.bot:                          # Ha az üzenet küldője bot
         return                                      # Ne reagáljunk botokra, elkerülve a végtelen loopokat
 
-    # Képes üzenet detektálása (csatolmányok)
-    if any(
-        (a.content_type and a.content_type.startswith('image/')) or
-        (a.filename and a.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')))
-        for a in message.attachments
-    ):
-        pass
 
-    elif message.content.startswith('?help'):
+    if message.content.startswith('?help'):
         await send_help(message)
 
     elif message.content.startswith('?level'):      # Szint lekérdezése parancs
