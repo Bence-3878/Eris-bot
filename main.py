@@ -1,27 +1,30 @@
-import discord
-import logging
-from dotenv import load_dotenv
-import os
-import random
-import math
+import discord                                      # Discord bot kliens
+# from discord.ext import commands
+import logging                                      # Naplózás
+from dotenv import load_dotenv                      # .env betöltés
+import os                                           # Környezeti változók
+import random                                       # Véletlen XP
+# import mysql.connector
+import math                                         # Szintgörbe számításhoz
 
 
 #####################################################import#############################################################
 
 
-try:
-    import mysql.connector
-    leveldb = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="alma",
-        database="discord_bot",
-        port=3306,
-        auth_plugin='mysql_native_password'
+try:                                                # Megkíséreljük az adatbázis-kapcsolat létrehozását
+    import mysql.connector                          # MySQL kliens importálása
+    leveldb = mysql.connector.connect(              # Csatlakozás a MySQL adatbázishoz
+        host="localhost",                           # Adatbázis szerver címe
+        user="root",                                # Adatbázis felhasználónév
+        password="alma",                            # Adatbázis jelszó (demó érték, élesben ne így tárold)
+        database="discord_bot",                     # Használt adatbázis neve
+        port=3306,                                  # MySQL port
+        auth_plugin='mysql_native_password'         # Hitelesítési plugin (kompatibilitási okokból)
     )
-except Exception as e:
-    leveldb = None
+except Exception as e:                              # Ha bármilyen hiba történik az import/csatlakozás során
+    leveldb = None                                  # Állítsuk None-ra, jelezve hogy nincs DB kapcsolat
     print(f"Figyelem: az adatbázis-kapcsolat nem jött létre: {e}. A szint/xp funkciók nem lesznek elérhetőek.")
+    # Figyelmeztető üzenet a konzolra
 
 
 load_dotenv()                                       # .env fájl beolvasása a környezeti változókhoz
@@ -48,14 +51,13 @@ admin_id = 543856425131180036                       # Az admin fő fiókjának I
 #####################################################init###############################################################
 
 
-def gPX(s):
+def gPX(s):                                         # Heurisztikus XP egy üzenetre
     n = len(s) + random.randint(-3, 5)
     if n > 50:
         n = 50 + random.randint(-5, 5)
     return n
 
-
-def level(xp):
+def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
     if xp < 0:
         return 0
     l = 0
@@ -64,9 +66,6 @@ def level(xp):
             return max(0, i - 1)
         l = i
     return l
-
-
-
 
 
 ###############################################egyszerű függvények######################################################
@@ -152,20 +151,35 @@ async def admin_test(message: discord.Message):
 async def other_messege(message: discord.Message):
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
         return
+    # DM-ek kizárása – szerverhez nem kötött üzenetnél nincs guild/id
+    if message.guild is None:
+        return
+    # Ne legyen negatív XP
     xp = gPX(message.content)  # XP becslés az üzenet tartalmából
     cursor = leveldb.cursor()
 
+
     try:  # Adatbázis műveletek védett része
-        cursor.execute('select * from servers where id = %s', (message.guild.id))
+        # Szerver beállítások lekérdezése: csak a szükséges oszlopok
+        cursor.execute('SELECT level_up_ch, level_sys FROM servers WHERE id = %s', (message.guild.id,))
         row1 = cursor.fetchone()
-        cursor.execute(  # Meglévő adatok lekérdezése
+        # Ha nincs szerver rekord, vagy ki van kapcsolva a szint rendszer, kilépünk
+        if not row1:
+            return
+        level_up_ch, level_sys = row1
+
+
+        # Meglévő adatok lekérdezése
+        cursor.execute(
             'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
             (message.author.id, message.guild.id)
         )
         row = cursor.fetchone()  # Eredmény beolvasása
+
+
         if row is None:  # Ha új felhasználó ezen a szerveren
             try:  # Beszúrás próbálkozás
-                cursor.execute(  # Új rekord létrehozása kezdő értékekkel
+                cursor.execute(
                     'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
                     (message.author.id, message.guild.id, xp, 0)
                 )
@@ -173,27 +187,38 @@ async def other_messege(message: discord.Message):
             except mysql.connector.Error as e:  # DB hiba esetén
                 leveldb.rollback()  # Visszagörgetés
                 await message.channel.send(f'Hiba az adatbázis beszúráskor: {e.msg}')  # Hibaüzenet
+
+
         else:  # Ha már létezik rekord
             current_xp = row[0] + xp  # Új összesített XP kiszámítása
+            if current_xp < 0:
+                current_xp = 0
             new_level = level(current_xp)  # Új szint meghatározása
             try:  # Frissítés és szintlépés kezelése
-                if row[1] < new_level:  # Ha szintet lépett a felhasználó
-                    channel = client.get_channel(row1[2])  # Kijelölt szintlépés csatorna lekérése (ID alapján)
-                    if channel is not None:  # Ha a csatorna elérhető
-                        await channel.send(f"{message.author.mention} {new_level}. szintű lett")  # Publikus gratuláció
-                    if row1[3] == 1:
-                        try:  # Privát üzenet küldése
-                            await message.author.send(f"{new_level}. szintű lettél")  # DM értesítés
-                        except Exception:  # Ha nem sikerül DM-et küldeni (pl. tiltva)
-                            pass  # Néma elnyelés
-                cursor.execute(  # Felhasználó rekordjának frissítése
+                # Felhasználó rekordjának frissítése
+                cursor.execute(
                     'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
                     (current_xp, new_level, message.author.id, message.guild.id)
                 )
                 leveldb.commit()  # Tranzakció véglegesítése
-            except mysql.connector.Error as e:  # Frissítési hiba esetén
+
+                # Szintlépés értesítés csak sikeres commit után
+                if row[1] < new_level:
+                    channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
+                    try:
+                        await message.author.send(f"{new_level}. szintű lettél")
+                    except Exception:
+                        pass
+                    if channel is not None:
+                        await channel.send(f"{message.author.mention} {new_level}. szintű lett")
+                    else:
+                        await message.channel.send(f"{message.author.mention} {new_level}. szintű lett")
+            except mysql.connector.Error as e:
                 leveldb.rollback()  # Visszagörgetés
                 await message.channel.send(f'Hiba frissítés közben: {e.msg}')  # Hibaüzenet
+    except mysql.connector.Error as e:
+        await message.channel.send(f'Hiba frissítés közben: {e.msg}')
+
     finally:  # Mindig lefut
         cursor.close()  # Kurzor lezárása
 
