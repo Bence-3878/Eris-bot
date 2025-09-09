@@ -75,6 +75,15 @@ async def on_message(message):                      # Minden bejövő üzenetre 
     if message.author.bot:                          # Ha az üzenet küldője bot
         return                                      # Ne reagáljunk botokra, elkerülve a végtelen loopokat
 
+    # Képes üzenet detektálása (csatolmányok)
+    if any(
+        (a.content_type and a.content_type.startswith('image/')) or
+        (a.filename and a.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')))
+        for a in message.attachments
+    ):
+
+
+
     if message.content.startswith('?help'):
         await message.channel.send('még fejlesztés alatt')
 # ... existing code ...
@@ -97,10 +106,15 @@ async def on_message(message):                      # Minden bejövő üzenetre 
         if result is None:                          # Ha nincs adat a felhasználóról
             await message.channel.send('Még nincs adatod ebben a szerverben.')  # Tájékoztatás
             return
-        await message.channel.send('szintje: ' + str(result[2]) +'\n'  # Üzenet a szintről
+        try:
+            await message.channel.send('szintje: ' + str(result[2]) +'\n'  # Üzenet a szintről
                                    + 'ennyi xp kell a következő szinthez: '  # Kiegészítő információ
                                    + str(result[1]-levels[result[2]]) + '/' + str(levels[result[2]+1]-levels[result[2]])
                                    + '\nösszes xp: ' + str(result[1]))  # Összesített XP kijelzése
+        except discord.Forbidden:
+            pass                                     # Nincs jogosultság reakcióhoz/íráshoz
+        except discord.HTTPException:
+            pass                                     # Discord API hiba esetén csendben továbblépünk
 # ... existing code ...
 
 
