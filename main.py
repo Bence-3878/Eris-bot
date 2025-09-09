@@ -214,6 +214,11 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
         raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
     return True
 
+async def admin_check(interaction: discord.Interaction) -> bool:
+    if not (interaction.user.id == admin_id):
+        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
+    return True
+
 
 
 
@@ -324,7 +329,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         print(f"Parsing hiba: {parse_err}")
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
    
-
+                                ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
@@ -682,7 +687,7 @@ async def top_command(interaction: discord.Interaction):
         )
         rank += 1  # Rang növelése
 
-    await interaction.channel.send(embed=embed)  # Embed küldése a csatornára
+    await interaction.channel.send(embed=embed,ephemeral=True)  # Embed küldése a csatornára
 
 # SLASH parancs: /level [user]
 @tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
@@ -860,6 +865,8 @@ async def slash_global_level(interaction: discord.Interaction, user: discord.Mem
     )
 
 
+                            ###################szint rendszer###################
+
 @tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
 @app_commands.describe(text="üzenet")
 async def slash_test(interaction: discord.Interaction, text: str):
@@ -921,9 +928,7 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             "Váratlan hiba történt az üzenet küldése közben.",
             ephemeral=True
         )
-        
-         
-         
+
 @send_group.command(name="server")
 @app_commands.describe(text="üzenet", channel="melyik csatornába?", user="kinek küldjem?")
 async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel, user: discord.Member | None = None):
@@ -1024,6 +1029,72 @@ async def slash_help(interaction: discord.Interaction):
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
 
+
+                                   ###################????###################
+
+@tree.command(name="sql")
+@app_commands.check(admin_check)
+@app_commands.describe(text="hivás")
+async def sql(interaction: discord.Interaction, text: str):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        return
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(text)
+        result = cursor.fetchone()
+    except mysql.connector.Error as e:
+        await interaction.response.send_message(
+            f'Hiba a SQL-bevitelben: {e.msg}',
+            ephemeral=True
+        )
+        return
+    except Exception as e:
+        await interaction.response.send_message(
+            f'{e}',
+            ephemeral=True
+        )
+        return
+    finally:
+        cursor.close()
+    if result is None:
+        await interaction.response.send_message(
+            "üres lekérés",
+            ephemeral=True
+        )
+    await interaction.response.send_message(
+        str(result),
+        ephemeral=True
+    )
+
+@tree.command(name="poweroff")
+@app_commands.check(admin_check)
+async def poweroff(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "égveled"
+    )
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    os.system("poweroff")
+
+@tree.command(name="reboot")
+@app_commands.check(admin_check)
+async def reboot(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "mindjárt jövök"
+    )
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    os.system("reboot")
 
 ##################################################SLASH függvények######################################################
 
