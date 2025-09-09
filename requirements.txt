@@ -1,2 +1,5 @@
 discord.py
 python-dotenv
+mysql-connector-python
+bs4
+requests

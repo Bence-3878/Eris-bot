@@ -23,7 +23,6 @@ python3 -m venv venv;
 source venv/bin/activate; 
 pip install --upgrade pip; 
 pip install -r requirements.txt; 
-pip install mysql-connector-python bs4 requests
 ```
 Megjegyzés:
 - A `math` a Python szabványkönyvtár része, nem kell telepíteni.
