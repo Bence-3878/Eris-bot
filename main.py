@@ -208,11 +208,10 @@ async def rule34(interaction: discord.Interaction, search: str):
         r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
         r2 = sess.post(
             "https://rule34.xxx/index.php?page=search",
-            data={"tags": f"{search}+", "commit": "Search"},
+            data={"tags": f"{search}", "commit": "Search"},
             headers=headers,
             timeout=15,
         )
-        print(r2.text)
         return r1.status_code, r2.status_code, r2.text
 
     try:
@@ -265,9 +264,18 @@ async def rule34(interaction: discord.Interaction, search: str):
 
         # HTML feldolgozása – keressünk néhány találati linket
     try:
+        soup = BeautifulSoup(html, 'html.parser')
+        thumbnails = soup.find_all('span', class_='thumb')
 
+        image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
 
-        pass
+        if not image_links:
+            await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+            return
+
+        # Random kép kiválasztása és küldése
+        random_image = random.choice(image_links)
+        await interaction.followup.send(random_image)
 
     except Exception as parse_err:
         print(f"Parsing hiba: {parse_err}")
