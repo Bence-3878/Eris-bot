@@ -91,34 +91,6 @@ async def send_help(message: discord.Message):
     except discord.HTTPException:
         pass
 
-async def send_level(message: discord.Message):
-    if leveldb is None:  # Ha nincs adatbázis kapcsolat
-        await message.channel.send('Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.')
-        # Visszajelzés a felhasználónak
-        return
-    cursor = leveldb.cursor()  # Kurzor nyitása lekérdezéshez
-    try:  # Próbáljuk lefuttatni a lekérdezést
-        cursor.execute(  # Lekérdezés: felhasználó XP és szint adott szerveren
-            'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
-            (message.author.id, message.guild.id)
-        )
-        result = cursor.fetchone()  # Egyetlen sor beolvasása
-    finally:  # Mindig lefut, hiba esetén is
-        cursor.close()  # Kuren lezárása erőforrás-felszabadítás miatt
-    if result is None:  # Ha nincs adat a felhasználóról
-        await message.channel.send('Még nincs adatod ebben a szerverben.')  # Tájékoztatás
-        return
-    try:
-        await message.channel.send('szintje: ' + str(result[2]) + '\n'  # Üzenet a szintről
-                                   + 'ennyi xp kell a következő szinthez: '  # Kiegészítő információ
-                                   + str(result[1] - levels[result[2]]) + '/' + str(
-            levels[result[2] + 1] - levels[result[2]])
-                                   + '\nösszes xp: ' + str(result[1]))  # Összesített XP kijelzése
-    except discord.Forbidden:
-        pass  # Nincs jogosultság reakcióhoz/íráshoz
-    except discord.HTTPException:
-        pass  # Discord API hiba esetén csendben továbblépünk
-
 async def send_test(message: discord.Message):
     try:
         await message.channel.send('test')
@@ -285,6 +257,54 @@ async def slash_xp(interaction: discord.Interaction, user: discord.Member | None
         f'Összes XP: {total_xp}'
     )
 
+# SLASH parancs: /level [user]
+@tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
+@app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
+async def slash_level(interaction: discord.Interaction, user: discord.Member | None = None):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        return
+    if interaction.guild is None:
+        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
+        return
+
+    target = user or interaction.user
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
+            (target.id, interaction.guild.id)
+        )
+        result = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    if result is None:
+        await interaction.response.send_message(
+            f'{target.mention} még nem rendelkezik adatokkal ezen a szerveren.',
+            ephemeral=True
+        )
+        return
+
+    lvl = int(result[2])
+    total_xp = int(result[1])
+    # Szint progressz
+    if lvl + 1 < len(levels):
+        have = total_xp - levels[lvl]
+        need = levels[lvl + 1] - levels[lvl]
+    else:
+        have = 0
+        need = 0
+
+    await interaction.response.send_message(
+        f'{target.mention} szintje: {lvl}\n'
+        f'Következő szinthez: {have}/{need}\n'
+        f'Összes XP: {total_xp}'
+    )
+
 
 @client.event                                       # Eseménykezelő regisztrálása a klienshez
 async def on_ready():                               # Akkor fut, amikor a bot sikeresen csatlakozott és készen áll
@@ -296,6 +316,19 @@ async def on_ready():                               # Akkor fut, amikor a bot si
     try:
         await tree.sync()
         print("Slash parancsok szinkronizálva.")
+        # Extra: per-guild szinkronizáció és ellenőrzés
+        for g in client.guilds:
+            try:
+                cmds = await tree.sync(guild=g)
+                print(f"Per-guild sync kész: {g.name} ({g.id}). Parancsok: {[c.name for c in cmds]}")
+            except Exception as ge:
+                print(f"Per-guild sync hiba {g.name} ({g.id}): {ge}")
+        # Globális parancsok listázása
+        try:
+            global_cmds = await tree.fetch_commands()
+            print(f"Globális parancsok: {[c.name for c in global_cmds]}")
+        except Exception as fe:
+            print(f"Globális parancsok lekérése sikertelen: {fe}")
     except Exception as e:
         print(f"Slash parancs szinkronizáció hiba: {e}")
 
