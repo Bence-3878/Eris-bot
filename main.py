@@ -872,10 +872,10 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"Pong! Bot latency: {round(client.latency * 1000)}ms")
 
 #send_group = app_commands.Group(name="sand", description="üzenet")
-@tree.command(name="send", )
-@app_commands.describe(type=app_commands.Choice(name='DM vagy server', value='dm_szeró'))
-async def send(interaction: discord.Interaction, type: app_commands.Choice[str]):
-    pass
+#@tree.command(name="send", )
+#@app_commands.describe(type=app_commands.Choice(name='DM vagy server', value='dm_szeró'))
+#async def send(interaction: discord.Interaction, type: app_commands.Choice[str]):
+ #   pass
 
 
 # Help message constant
