@@ -1,5 +1,5 @@
 import asyncio
-from pickle import FALSE
+from pickle import FALSE, GLOBAL
 
 import discord                                      # Discord bot kliens
 # from discord.ext import commands
@@ -40,6 +40,10 @@ if not Path('.env').is_file():
 
 load_dotenv()                                       # .env fájl beolvasása a környezeti változókhoz
 token = os.getenv('DISCORD_TOKEN')                  # A Discord bot token kiolvasása környezetből
+
+if not token:                                       # Ha a token nincs megadva
+    raise RuntimeError("DISCORD_TOKEN nincs beállítva a környezetben (.env).")
+                                                    # Hibát dobunk, hogy ne induljon el a bot
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')  # Naplófájl kezelő beállítása
 intents = discord.Intents.default()                 # Alapértelmezett intentek (engedélyek) létrehozása
@@ -188,13 +192,14 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
 
 
 
-@tree.command(name="rule34", nsfw=False)
+@tree.command(name="rule34", nsfw=True)
 @app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
 async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool = False):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
     if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
             interaction.channel, discord.DMChannel)):
-        await interaction.response.send_message("Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
+        await interaction.response.send_message(
+            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
         return
     
     # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
@@ -290,12 +295,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
    
 
-        
 
-
-
-
- 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
 
@@ -511,7 +511,8 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
     )
 
 @xp_group.command(name="set", description="XP közvetlen beállítása (admin).")
-@app_commands.describe(user="A felhasználó, akinek beállítod az XP-t.", amount="Az új XP érték (0 vagy pozitív egész).")
+@app_commands.describe(user="A felhasználó, akinek beállítod az XP-t.",
+                       amount="Az új XP érték (0 vagy pozitív egész).")
 @app_commands.guild_only()
 @app_commands.check(admin_or_owner_check)
 async def xp_set(interaction: discord.Interaction, user: discord.Member, amount: int):
@@ -745,6 +746,97 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
         f'Összes XP: {total_xp}'
     )
 
+# SLASH parancs: /level [user]
+@tree.command(name="global_level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
+@app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
+async def slash_level(interaction: discord.Interaction, user: discord.Member | None = None):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        return
+
+    target = user or interaction.user
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT COALESCE(SUM(su.user_xp), 0) AS total_xp FROM server_users su WHERE su.id = %s;',
+            (target.id)
+        )
+        result = cursor.fetchone()
+    except mysql.connector.Error as e:
+        await interaction.response.defer(ephemeral=True)
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user is not None:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
+                                                                  and getattr(interaction.channel, "name",
+                                                                              None)) else "#ismeretlen-csatorna"
+                await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
+                    f"Adatbázis hiba: {e.msg}"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
+    except Exception as e:
+        await interaction.response.defer(ephemeral=True)
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user is not None:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
+                                                                  and getattr(interaction.channel, "name",
+                                                                              None)) else "#ismeretlen-csatorna"
+                await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
+                    f"Váratlan hiba történt: {str(e)}"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
+    finally:
+        cursor.close()
+
+    if result is None:
+        await interaction.response.send_message(
+            f'{target.mention} még nem rendelkezik adatokkal ezen a szerveren.',
+            ephemeral=True
+        )
+        return
+
+    lvl = int(result[2])
+    total_xp = int(result[1])
+    # Szint progressz
+    if lvl + 1 < len(levels):
+        have = total_xp - levels[lvl]
+        need = levels[lvl + 1] - levels[lvl]
+    else:
+        have = 0
+        need = 0
+
+    await interaction.response.send_message(
+        f'{target.mention} szintje: {lvl}\n'
+        f'Következő szinthez: {have}/{need}\n'
+        f'Összes XP: {total_xp}'
+    )
+
+
+
 @tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
 @app_commands.describe(text="üzenet")
 async def slash_test(interaction: discord.Interaction, text: str):
@@ -940,9 +1032,6 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         except discord.InteractionResponded:
             await interaction.followup.send(str(error), ephemeral=True)
 
-if not token:                                       # Ha a token nincs megadva
-    raise RuntimeError("DISCORD_TOKEN nincs beállítva a környezetben (.env).")  # Hibát dobunk, hogy ne induljon el a bot
 
-
-
-client.run(token, log_handler=handler, log_level=logging.DEBUG)  # Bot futtatása a megadott tokennel és naplózási beállításokkal
+client.run(token, log_handler=handler, log_level=logging.DEBUG)
+                                                # Bot futtatása a megadott tokennel és naplózási beállításokkal
