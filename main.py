@@ -1,3 +1,5 @@
+import asyncio
+
 import discord                                      # Discord bot kliens
 # from discord.ext import commands
 import logging                                      # Naplózás
@@ -55,7 +57,10 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
     levels.append(m)                                # Hozzáadás a listához
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
- 
+
+
+sess = requests.Session()
+
  
 #####################################################init###############################################################
 
@@ -150,6 +155,7 @@ async def other_messege(message: discord.Message):
                     channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
                     try:
                         await message.author.send(f"{new_level}. szintű lettél")
+
                     except Exception:
                         pass
                     if channel is not None:
@@ -177,6 +183,98 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
 
 
 ##############################################aszinkron függvények######################################################
+
+@tree.command(name="rule34", nsfw=True)
+@app_commands.describe(search="Keresés")
+async def rule34(interaction: discord.Interaction, search: str):
+    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
+    if not getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) \
+            and True:
+        await interaction.response.send_message("Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
+        return
+    
+    # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
+    await interaction.response.defer(ephemeral=True)
+    
+
+    # Kérés futtatása külön szálon, fejlécekkel
+    def _fetch():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+        r2 = sess.post(
+            "https://rule34.xxx/index.php?page=search",
+            data={"tags": f"{search}+", "commit": "Search"},
+            headers=headers,
+            timeout=15,
+        )
+        print(r2.text)
+        return r1.status_code, r2.status_code, r2.text
+
+    try:
+        loop = asyncio.get_running_loop()
+        _, status_code, html = await loop.run_in_executor(None, _fetch)
+
+    except Exception as e:
+        # Hiba esetén értesítsük az admint és csendben térjünk vissza
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user is not None:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
+                                                                  and getattr(interaction.channel, "name",
+                                                                              None)) else "#ismeretlen-csatorna"
+                await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
+                    f"Váratlan hiba történt: {str(e)}\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
+
+
+    if status_code != 200:
+        # Admin értesítése, majd rövid hibaüzenet
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user is not None:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
+                                                                  and getattr(interaction.channel, "name",
+                                                                              None)) else "#ismeretlen-csatorna"
+                await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
+                    f"A rule34.xxx nem sikerült elérni (HTTP {status_code})\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+        return
+
+        # HTML feldolgozása – keressünk néhány találati linket
+    try:
+
+
+        pass
+
+    except Exception as parse_err:
+        print(f"Parsing hiba: {parse_err}")
+        await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+   
+
+        
 
 
 
@@ -216,6 +314,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Adatbázis hiba: {e.msg}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -237,6 +336,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -313,6 +413,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -374,6 +475,7 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -436,6 +538,7 @@ async def xp_set(interaction: discord.Interaction, user: discord.Member, amount:
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -481,6 +584,7 @@ async def top_command(interaction: discord.Interaction):
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Adatbázis hiba: {e.msg}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -502,6 +606,7 @@ async def top_command(interaction: discord.Interaction):
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -564,6 +669,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Adatbázis hiba: {e.msg}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -585,6 +691,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
                                                                   and getattr(interaction.channel, "name",
                                                                               None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Váratlan hiba történt: {str(e)}"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -662,6 +769,7 @@ async def slash_help(interaction: discord.Interaction):
                 channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None) 
                                                                   and getattr(interaction.channel, "name", None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
+                    f"Parancs: {interaction.command.name}\n"
                     f"Hiba történt a súgó megjelenítésekor.\n"
                     f"Hely: {guild_name} | {channel_name}\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})"
@@ -739,6 +847,8 @@ async def on_guild_join(guild: discord.Guild):      # Akkor fut, amikor a bot eg
                 if admin_user is not None:
                     guild_name = guild.name if guild else "DM/Ismeretlen szerver"
                     await admin_user.send(
+                        f"Parancs: {guild.me.guild_permissions.administrator} | {guild.me.guild_permissions.manage_guild}"
+                        f"Új szervere belépés"
                         f"Adatbázis hiba: {e.msg}\n"
                         f"Hely: {guild_name} (ID {guild.id})\n"
                         f"Hibakód: {e.errno}\n"
@@ -754,6 +864,8 @@ async def on_guild_join(guild: discord.Guild):      # Akkor fut, amikor a bot eg
                 if admin_user is not None:
                     guild_name = guild.name if guild else "DM/Ismeretlen szerver"
                     await admin_user.send(
+                        f"Parancs: {guild.me.guild_permissions.administrator} | {guild.me.guild_permissions.manage_guild}"
+                        f"Új szervere belépés"
                         f"Váratlan hiba történt: {str(e)}\n"
                         f"Hely: {guild_name} (ID {guild.id})\n"
                         f"Hiba típusa: {type(e).__name__}\n"
@@ -784,6 +896,8 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
             if admin_user is not None:
                 guild_name = member.guild.name if member.guild else "Ismeretlen szerver"
                 await admin_user.send(
+                    f"Parancs: {member.guild.me.guild_permissions.administrator} | {member.guild.me.guild_permissions.manage_guild}"
+                    f"Új ember lépet be a szerverre"
                     f"Hiba történt új tag csatlakozásakor: {str(e)}\n"
                     f"Szerver: {guild_name} (ID: {member.guild.id})\n"
                     f"Tag: {member} (ID: {member.id})"
