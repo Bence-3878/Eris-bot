@@ -1,6 +1,7 @@
 import discord                                      # Discord bot kliens
 # from discord.ext import commands
 import logging                                      # Naplózás
+import contextlib
 from dotenv import load_dotenv                      # .env betöltés
 import os                                           # Környezeti változók
 import random                                       # Véletlen XP
@@ -48,8 +49,8 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
     levels.append(m)                                # Hozzáadás a listához
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
-
-
+ 
+ 
 #####################################################init###############################################################
 
 
@@ -83,22 +84,6 @@ def level(xp):                                      # XP -> szint átalakítás 
 ###############################################egyszerű függvények######################################################
 
 
-async def send_help(message: discord.Message):
-    try:
-        await message.channel.send('még fejlesztés alatt')
-    except discord.Forbidden:
-        pass
-    except discord.HTTPException:
-        pass
-
-async def send_test(message: discord.Message):
-    try:
-        await message.channel.send('test')
-    except discord.Forbidden:
-        pass
-    except discord.HTTPException:
-        pass
-
 async def send_top(message: discord.Message):
     if leveldb is None:  # DB nélkül nem megy
         await message.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
@@ -129,8 +114,6 @@ async def send_top(message: discord.Message):
 
     await message.channel.send(embed=embed)  # Embed küldése a csatornára
 
-async def admin_test(message: discord.Message):
-    pass
 
 async def other_messege(message: discord.Message):
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
@@ -212,9 +195,204 @@ async def other_messege(message: discord.Message):
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
 
+# Közös jogosultság ellenőrzés: csak szerveren, és csak admin vagy az admin_id
+async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
+    if interaction.guild is None:
+        raise app_commands.CheckFailure('Ez a parancs csak szerveren használható.')
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
+        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
+    return True
+
+
 @xp_group.command(name="show", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
 async def xp_show(interaction: discord.Interaction, user: discord.Member | None = None):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        return
+    if interaction.guild is None:
+        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
+        return
+
+    target = user or interaction.user
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            (target.id, interaction.guild.id)
+        )
+        result = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    if result is None:
+        await interaction.response.send_message(
+            f'{target.mention} még nem rendelkezik adatokkal ezen a szerveren.',
+            ephemeral=True
+        )
+        return
+
+    total_xp = int(result[0])
+
+    await interaction.response.send_message(
+        f'Összes XP: {total_xp}',
+        ephemeral=True
+    )
+
+@xp_group.command(name="add", description="XP hozzáadása egy felhasználónak (admin).")
+@app_commands.describe(user="A felhasználó, akinek XP-t adsz.", amount="Mennyit adjunk hozzá (pozitív egész).")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def xp_add(interaction: discord.Interaction, user: discord.Member, amount: int):
+    if leveldb is None:
+        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        return
+    # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
+    if amount <= 0:
+        await interaction.response.send_message('Az amount legyen pozitív egész.', ephemeral=True)
+        return
+
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            (user.id, interaction.guild.id)
+        )
+        row = cursor.fetchone()
+
+        if row is None:
+            new_xp = amount
+            new_level = level(new_xp)
+            cursor.execute(
+                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                (user.id, interaction.guild.id, new_xp, new_level)
+            )
+        else:
+            current_xp = int(row[0])
+            new_xp = current_xp + amount
+            new_level = level(new_xp)
+            cursor.execute(
+                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
+                (new_xp, new_level, user.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
+    )
+
+@xp_group.command(name="remove", description="XP elvétele egy felhasználótól (admin).")
+@app_commands.describe(user="A felhasználó, akitől XP-t veszel el.", amount="Mennyit vonjunk le (pozitív egész).")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def xp_remove(interaction: discord.Interaction, user: discord.Member, amount: int):
+    if leveldb is None:
+        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        return
+    # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
+    if amount <= 0:
+        await interaction.response.send_message('Az amount legyen pozitív egész.', ephemeral=True)
+        return
+
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            (user.id, interaction.guild.id)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            await interaction.response.send_message('Nincs adat ehhez a felhasználóhoz ezen a szerveren.', ephemeral=True)
+            return
+
+        current_xp = int(row[0])
+        new_xp = max(0, current_xp - amount)
+        new_level = level(new_xp)
+        cursor.execute(
+            'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
+            (new_xp, new_level, user.id, interaction.guild.id)
+        )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
+    )
+
+@xp_group.command(name="set", description="XP közvetlen beállítása (admin).")
+@app_commands.describe(user="A felhasználó, akinek beállítod az XP-t.", amount="Az új XP érték (0 vagy pozitív egész).")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def xp_set(interaction: discord.Interaction, user: discord.Member, amount: int):
+    if leveldb is None:
+        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        return
+    # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
+    if amount < 0:
+        await interaction.response.send_message('Az amount nem lehet negatív.', ephemeral=True)
+        return
+
+    new_xp = amount
+    new_level = level(new_xp)
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(
+            'SELECT 1 FROM server_users WHERE id = %s AND server_id = %s',
+            (user.id, interaction.guild.id)
+        )
+        exists = cursor.fetchone() is not None
+        if exists:
+            cursor.execute(
+                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
+                (new_xp, new_level, user.id, interaction.guild.id)
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                (user.id, interaction.guild.id, new_xp, new_level)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f'{user.mention} XP-je beállítva: {new_xp} (szint: {new_level})', ephemeral=True
+    )
+
+# Regisztráljuk a csoportot a parancsfához
+tree.add_command(xp_group)
+
+# Globális hiba-kezelő a dekorátorok CheckFailure üzeneteihez
+@tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CheckFailure):
+        try:
+            await interaction.response.send_message(str(error), ephemeral=True)
+        except discord.InteractionResponded:
+            await interaction.followup.send(str(error), ephemeral=True)
+
+# SLASH parancs: /level [user]
+@tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
+@app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
+async def slash_level(interaction: discord.Interaction, user: discord.Member | None = None):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -256,204 +434,56 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
     await interaction.response.send_message(
         f'{target.mention} szintje: {lvl}\n'
         f'Következő szinthez: {have}/{need}\n'
-        f'Összes XP: {total_xp}',
-        ephemeral=True
-    )
-
-@xp_group.command(name="add", description="XP hozzáadása egy felhasználónak (admin).")
-@app_commands.describe(user="A felhasználó, akinek XP-t adsz.", amount="Mennyit adjunk hozzá (pozitív egész).")
-async def xp_add(interaction: discord.Interaction, user: discord.Member, amount: int):
-    if leveldb is None:
-        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
-        return
-    if interaction.guild is None:
-        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
-        return
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
-        await interaction.response.send_message('Nincs jogosultságod ehhez a parancshoz.', ephemeral=True)
-        return
-    if amount <= 0:
-        await interaction.response.send_message('Az amount legyen pozitív egész.', ephemeral=True)
-        return
-
-    cursor = leveldb.cursor()
-    try:
-        cursor.execute(
-            'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
-            (user.id, interaction.guild.id)
-        )
-        row = cursor.fetchone()
-
-        if row is None:
-            new_xp = amount
-            new_level = level(new_xp)
-            cursor.execute(
-                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                (user.id, interaction.guild.id, new_xp, new_level)
-            )
-        else:
-            current_xp = int(row[0])
-            new_xp = current_xp + amount
-            new_level = level(new_xp)
-            cursor.execute(
-                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-                (new_xp, new_level, user.id, interaction.guild.id)
-            )
-        leveldb.commit()
-    except Exception as e:
-        leveldb.rollback()
-        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
-        return
-    finally:
-        cursor.close()
-
-    await interaction.response.send_message(
-        f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
-    )
-
-@xp_group.command(name="remove", description="XP elvétele egy felhasználótól (admin).")
-@app_commands.describe(user="A felhasználó, akitől XP-t veszel el.", amount="Mennyit vonjunk le (pozitív egész).")
-async def xp_remove(interaction: discord.Interaction, user: discord.Member, amount: int):
-    if leveldb is None:
-        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
-        return
-    if interaction.guild is None:
-        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
-        return
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
-        await interaction.response.send_message('Nincs jogosultságod ehhez a parancshoz.', ephemeral=True)
-        return
-    if amount <= 0:
-        await interaction.response.send_message('Az amount legyen pozitív egész.', ephemeral=True)
-        return
-
-    cursor = leveldb.cursor()
-    try:
-        cursor.execute(
-            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
-            (user.id, interaction.guild.id)
-        )
-        row = cursor.fetchone()
-        if row is None:
-            await interaction.response.send_message('Nincs adat ehhez a felhasználóhoz ezen a szerveren.', ephemeral=True)
-            return
-
-        current_xp = int(row[0])
-        new_xp = max(0, current_xp - amount)
-        new_level = level(new_xp)
-        cursor.execute(
-            'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-            (new_xp, new_level, user.id, interaction.guild.id)
-        )
-        leveldb.commit()
-    except Exception as e:
-        leveldb.rollback()
-        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
-        return
-    finally:
-        cursor.close()
-
-    await interaction.response.send_message(
-        f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
-    )
-
-@xp_group.command(name="set", description="XP közvetlen beállítása (admin).")
-@app_commands.describe(user="A felhasználó, akinek beállítod az XP-t.", amount="Az új XP érték (0 vagy pozitív egész).")
-async def xp_set(interaction: discord.Interaction, user: discord.Member, amount: int):
-    if leveldb is None:
-        await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
-        return
-    if interaction.guild is None:
-        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
-        return
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
-        await interaction.response.send_message('Nincs jogosultságod ehhez a parancshoz.', ephemeral=True)
-        return
-    if amount < 0:
-        await interaction.response.send_message('Az amount nem lehet negatív.', ephemeral=True)
-        return
-
-    new_xp = amount
-    new_level = level(new_xp)
-    cursor = leveldb.cursor()
-    try:
-        cursor.execute(
-            'SELECT 1 FROM server_users WHERE id = %s AND server_id = %s',
-            (user.id, interaction.guild.id)
-        )
-        exists = cursor.fetchone() is not None
-        if exists:
-            cursor.execute(
-                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-                (new_xp, new_level, user.id, interaction.guild.id)
-            )
-        else:
-            cursor.execute(
-                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                (user.id, interaction.guild.id, new_xp, new_level)
-            )
-        leveldb.commit()
-    except Exception as e:
-        leveldb.rollback()
-        await interaction.response.send_message(f'Hiba: {e}', ephemeral=True)
-        return
-    finally:
-        cursor.close()
-
-    await interaction.response.send_message(
-        f'{user.mention} XP-je beállítva: {new_xp} (szint: {new_level})', ephemeral=True
-    )
-
-# Regisztráljuk a csoportot a parancsfához
-tree.add_command(xp_group)
-
-# SLASH parancs: /level [user]
-@tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
-@app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def slash_level(interaction: discord.Interaction, user: discord.Member | None = None):
-    if leveldb is None:
-        await interaction.response.send_message(
-            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
-            ephemeral=True
-        )
-        return
-    if interaction.guild is None:
-        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
-        return
-
-    target = user or interaction.user
-    cursor = leveldb.cursor()
-    try:
-        cursor.execute(
-            'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
-            (target.id, interaction.guild.id)
-        )
-        result = cursor.fetchone()
-    finally:
-        cursor.close()
-
-    if result is None:
-        await interaction.response.send_message(
-            f'{target.mention} még nem rendelkezik adatokkal ezen a szerveren.',
-            ephemeral=True
-        )
-        return
-
-    lvl = int(result[2])
-    total_xp = int(result[1])
-    # Szint progressz
-    if lvl + 1 < len(levels):
-        have = total_xp - levels[lvl]
-        need = levels[llv + 1] - levels[lvl]
-    else:
-        have = 0
-        need = 0
-
-    await interaction.response.send_message(
-        f'{target.mention} szintje: {lvl}\n'
-        f'Következő szinthez: {have}/{need}\n'
         f'Összes XP: {total_xp}'
     )
+
+@tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
+@app_commands.describe(text="üzenet")
+async def slash_test(interaction: discord.Interaction, text: str):
+    # A slash opciót paraméterként kapjuk meg
+    print(text)
+
+# Help message constant
+HELP_MESSAGE = """**Bot Parancsok**
+*Alap parancsok:*
+• `/help` - Ezt a súgót jeleníti meg
+• `/level [felhasználó]` - Megmutatja a szinted és XP-d (vagy másét)
+• `/test` - Random teszt funkció
+
+*XP parancsok:*
+• `/xp show [felhasználó]` - XP állapot lekérdezése
+• `/xp add <felhasználó> <mennyiség>` - XP hozzáadása (admin)
+• `/xp remove <felhasználó> <mennyiség>` - XP levonása (admin) 
+• `/xp set <felhasználó> <mennyiség>` - XP beállítása (admin)
+
+*Chat parancsok:*
+• `?top` - Toplista megjelenítése
+"""
+
+
+@tree.command(name="help", description="Parancs súgó megjelenítése")
+async def slash_help(interaction: discord.Interaction):
+    try:
+        await interaction.response.send_message(HELP_MESSAGE)
+    except discord.HTTPException:
+        await interaction.response.defer(ephemeral=True)
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user is not None:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None) 
+                                                                  and getattr(interaction.channel, "name", None)) else "#ismeretlen-csatorna"
+                await admin_user.send(
+                    f"Hiba történt a súgó megjelenítésekor.\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
 
 
 @client.event                                       # Eseménykezelő regisztrálása a klienshez
@@ -488,9 +518,6 @@ async def on_message(message):                      # Minden bejövő üzenetre 
         return                                      # Ne reagáljunk botokra, elkerülve a végtelen loopokat
 
 
-    if message.content.startswith('?help'):
-        await send_help(message)
-
     elif message.content.startswith('?top'):        # Toplista parancs
         await send_top(message)
 
@@ -510,7 +537,7 @@ async def on_guild_join(guild: discord.Guild):      # Akkor fut, amikor a bot eg
                 break                               # Megállunk az első megfelelőnél
 
     if channel is not None:                         # Ha találtunk alkalmas csatornát
-        await channel.send("Szia! Köszönöm a meghívást. Készen állok a használatra. Írd be: ?help")  # Üdvözlő üzenet
+        await channel.send("Szia! Köszönöm a meghívást. Készen állok a használatra.")  # Üdvözlő üzenet
 
     if leveldb is not None:                         # Ha az adatbázis elérhető
         cursor = leveldb.cursor()                   # Kurzor nyitása
