@@ -1,4 +1,6 @@
 
+CREATE DATABASE `discord_bot`;
+
 USE `discord_bot`;
 
 DROP TABLE IF EXISTS `servers`;
