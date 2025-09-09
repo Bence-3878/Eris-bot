@@ -8,6 +8,8 @@ import random                                       # Véletlen XP
 # import mysql.connector
 import math                                         # Szintgörbe számításhoz
 from discord import app_commands                    # SLASH parancsok támogatása
+import requests
+from bs4 import BeautifulSoup
 
 
 #####################################################import#############################################################
