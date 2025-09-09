@@ -53,8 +53,8 @@ intents.members = True                              # Tag események engedélyez
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 
-level1 = 200                                        # Kiinduló XP költség az első szinthez
-levelq = 1.1                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
+level1 = 100                                        # Kiinduló XP költség az első szinthez
+levelq = 1.2                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
 levels = [0,level1]
 for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
@@ -871,11 +871,113 @@ async def ping(interaction: discord.Interaction):
     """Displays bot latency"""
     await interaction.response.send_message(f"Pong! Bot latency: {round(client.latency * 1000)}ms")
 
-#send_group = app_commands.Group(name="sand", description="üzenet")
-#@tree.command(name="send", )
-#@app_commands.describe(type=app_commands.Choice(name='DM vagy server', value='dm_szeró'))
-#async def send(interaction: discord.Interaction, type: app_commands.Choice[str]):
- #   pass
+
+send_group = app_commands.Group(name="send", description="üzenet")
+
+@send_group.command(name="dm")
+@app_commands.describe(text="üzenet", user="kinek küldjem?")
+async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member):
+    try:
+        # Először válaszolunk az interakcióra hogy ne időzzön ki
+        await interaction.response.defer(ephemeral=True)
+
+        # Megpróbáljuk elküldeni a DM-et
+        await user.send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+
+        # Sikeres küldés visszajelzése
+        await interaction.followup.send(
+            f"Üzenet sikeresen elküldve {user.mention} részére!",
+            ephemeral=True
+        )
+
+    except discord.Forbidden:
+        # Ha a felhasználó letiltotta a DM-eket
+        await interaction.followup.send(
+            f"Nem tudtam üzenetet küldeni {user.mention} részére - "
+            "valószínűleg letiltotta a DM-eket.",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        # Egyéb hibák esetén
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = (f"#{interaction.channel.name}"
+                                if (getattr(interaction, "channel", None) and
+                                    getattr(interaction.channel, "name", None))
+                                else "#ismeretlen-csatorna")
+                await admin_user.send(
+                    f"DM küldési hiba:\n"
+                    f"Hiba: {str(e)}\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                    f"Címzett: {user} (ID: {user.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        await interaction.followup.send(
+            "Váratlan hiba történt az üzenet küldése közben.",
+            ephemeral=True
+        )
+        
+         
+         
+@send_group.command(name="server")
+@app_commands.describe(text="üzenet", channel="melyik csatornába?", user="kinek küldjem?")
+async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel, user: discord.Member | None = None):
+    try:
+        # Először válaszolunk az interakcióra hogy ne időzzön ki
+        await interaction.response.defer(ephemeral=True)
+
+        # Megpróbáljuk elküldeni az üzenetet a szerverre
+        await channel.send(f"{user.mention} {text}")
+        
+        # Sikeres küldés visszajelzése
+        await interaction.followup.send(
+            f"Üzenet sikeresen elküldve {user.mention} részére!",
+            ephemeral=True
+        )
+
+
+    except discord.Forbidden:
+        # Ha nincs jogosultság az üzenet küldésére
+        await interaction.followup.send(
+            f"Nem tudtam elküldeni az üzenetet a {channel.mention} csatornába - "
+            "nincs megfelelő jogosultságom.",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        # Egyéb hibák esetén
+        try:
+            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+            if admin_user:
+                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+                channel_name = (f"#{interaction.channel.name}"
+                                if (getattr(interaction, "channel", None) and
+                                    getattr(interaction.channel, "name", None))
+                                else "#ismeretlen-csatorna")
+                await admin_user.send(
+                    f"Szerver üzenet küldési hiba:\n"
+                    f"Hiba: {str(e)}\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                    f"Címzett: {user} (ID: {user.id})\n"
+                    f"Célcsatorna: {channel.name} (ID: {channel.id})"
+                )
+        except Exception as dm_err:
+            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        await interaction.followup.send(
+            "Váratlan hiba történt az üzenet küldése közben.",
+            ephemeral=True
+        )
+
+tree.add_command(send_group)
+
 
 
 # Help message constant
@@ -883,7 +985,8 @@ HELP_MESSAGE = """**Bot Parancsok**
 *Alap parancsok:*
 • `/help` - Ezt a súgót jeleníti meg
 • `/level [felhasználó]` - Megmutatja a szinted és XP-d (vagy másét)
-• `/test <üzenet>` - Random teszt funkció
+• `/global_level [felhasználó]` - Teljes XP állapot lekérdezése
+• `/test <üzenet>` - Random teszt funkció 
 • `/ping` - Bot késleltetés mutatása
 
 *XP parancsok:*
@@ -892,6 +995,10 @@ HELP_MESSAGE = """**Bot Parancsok**
 • `/xp remove <felhasználó> <mennyiség>` - XP levonása (admin)
 • `/xp set <felhasználó> <mennyiség>` - XP beállítása (admin)
 • `/top` - Toplista megjelenítése
+
+*Üzenet parancsok:*
+• `/send dm <üzenet> <felhasználó>` - Privát üzenet küldése
+• `/send server <üzenet> <csatorna> [felhasználó]` - Üzenet küldése szerver csatornába
 """
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
