@@ -1,4 +1,5 @@
 import asyncio
+from pickle import FALSE
 
 import discord                                      # Discord bot kliens
 # from discord.ext import commands
@@ -180,21 +181,29 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
     return True
 
 
+async def embed_send(interaction: discord.Interaction, image_url: str, ephemeral: bool = False):
+    embed = discord.Embed(
+        title="Keresés eredménye",
+        color=discord.Color.red()
+    )
+    embed.set_image(url=image_url)
+    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
 
 ##############################################aszinkron függvények######################################################
 
-@tree.command(name="rule34", nsfw=True)
-@app_commands.describe(search="Keresés")
-async def rule34(interaction: discord.Interaction, search: str):
+
+
+@tree.command(name="rule34", nsfw=False)
+@app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
+async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool = False):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
-    if not getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) \
-            and True:
+    if not getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False)():
         await interaction.response.send_message("Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
         return
     
     # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer(ephemeral=ephemeral)
     
 
     # Kérés futtatása külön szálon, fejlécekkel
@@ -275,8 +284,7 @@ async def rule34(interaction: discord.Interaction, search: str):
 
         # Random kép kiválasztása és küldése
         random_image = random.choice(image_links)
-        await interaction.followup.send(random_image)
-
+        await embed_send(interaction, random_image, ephemeral=ephemeral)
     except Exception as parse_err:
         print(f"Parsing hiba: {parse_err}")
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
