@@ -84,36 +84,6 @@ def level(xp):                                      # XP -> szint átalakítás 
 ###############################################egyszerű függvények######################################################
 
 
-async def send_top(message: discord.Message):
-    if leveldb is None:  # DB nélkül nem megy
-        await message.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
-        return
-    cursor = leveldb.cursor()  # Kurzor nyitása
-    try:  # Védett DB művelet
-        cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-            'SELECT id, user_xp FROM server_users WHERE server_id = %s ORDER BY user_xp DESC LIMIT 10',
-            (message.guild.id,)
-        )
-        result = cursor.fetchall()  # Minden sor beolvasása
-    finally:  # Mindig lefut
-        cursor.close()  # Kurzor zárása
-    embed = discord.Embed(  # Beágyazott üzenet létrehozása
-        title="top lista",  # Cím
-        description="a legtöbb üzenet küldő emberek listája",  # Leírás (XP proxyként)
-        color=discord.Color.blue()  # Szín beállítása
-    )
-
-    rank = 1  # Kezdő rangszám
-    for row in result:  # Végigmegyünk a lekérdezett sorokon
-        embed.add_field(  # Új mező hozzáadása az embedhez
-            name=f'#{rank} <@{row[0]}>',  # Helyezés és felhasználó megemlítése
-            value=str(row[1]),  # XP érték megjelenítése
-            inline=False  # Mezők külön sorban
-        )
-        rank += 1  # Rang növelése
-
-    await message.channel.send(embed=embed)  # Embed küldése a csatornára
-
 
 async def other_messege(message: discord.Message):
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
@@ -203,6 +173,36 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
         raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
     return True
 
+@tree.command(name="top")
+async def top_command(interaction: discord.Interaction):
+    if leveldb is None:  # DB nélkül nem megy
+        await interaction.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
+        return
+    cursor = leveldb.cursor()  # Kurzor nyitása
+    try:  # Védett DB művelet
+        cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
+            'SELECT id, user_xp FROM server_users WHERE server_id = %s ORDER BY user_xp DESC LIMIT 10',
+            (interaction.guild.id,)
+        )
+        result = cursor.fetchall()  # Minden sor beolvasása
+    finally:  # Mindig lefut
+        cursor.close()  # Kurzor zárása
+    embed = discord.Embed(  # Beágyazott üzenet létrehozása
+        title="top lista",  # Cím
+        description="a legtöbb üzenet küldő emberek listája",  # Leírás (XP proxyként)
+        color=discord.Color.blue()  # Szín beállítása
+    )
+
+    rank = 1  # Kezdő rangszám
+    for row in result:  # Végigmegyünk a lekérdezett sorokon
+        embed.add_field(  # Új mező hozzáadása az embedhez
+            name=f'#{rank} <@{row[0]}>',  # Helyezés és felhasználó megemlítése
+            value=str(row[1]),  # XP érték megjelenítése
+            inline=False  # Mezők külön sorban
+        )
+        rank += 1  # Rang növelése
+
+    await interaction.channel.send(embed=embed)  # Embed küldése a csatornára
 
 @xp_group.command(name="show", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
@@ -455,9 +455,7 @@ HELP_MESSAGE = """**Bot Parancsok**
 • `/xp add <felhasználó> <mennyiség>` - XP hozzáadása (admin)
 • `/xp remove <felhasználó> <mennyiség>` - XP levonása (admin) 
 • `/xp set <felhasználó> <mennyiség>` - XP beállítása (admin)
-
-*Chat parancsok:*
-• `?top` - Toplista megjelenítése
+• `/top` - Toplista megjelenítése
 """
 
 
@@ -516,10 +514,6 @@ async def on_ready():                               # Akkor fut, amikor a bot si
 async def on_message(message):                      # Minden bejövő üzenetre lefut (DM és szerver)
     if message.author.bot:                          # Ha az üzenet küldője bot
         return                                      # Ne reagáljunk botokra, elkerülve a végtelen loopokat
-
-
-    elif message.content.startswith('?top'):        # Toplista parancs
-        await send_top(message)
 
     else:                                           # Minden más üzenet esetén XP kezelés
         await other_messege(message)
