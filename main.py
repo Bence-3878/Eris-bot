@@ -53,8 +53,8 @@ intents.members = True                              # Tag események engedélyez
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 
-level1 = 100                                        # Kiinduló XP költség az első szinthez
-levelq = 1.2                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
+level1 = 500                                        # Kiinduló XP költség az első szinthez
+levelq = 1.04                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
 levels = [0,level1]
 for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
@@ -62,7 +62,6 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
     levels.append(m)                                # Hozzáadás a listához
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
-
 
 sess = requests.Session()
 
@@ -214,6 +213,11 @@ async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
         raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
     return True
 
+async def admin_check(interaction: discord.Interaction) -> bool:
+    if not (interaction.user.id == admin_id):
+        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
+    return True
+
 
 
 
@@ -324,7 +328,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         print(f"Parsing hiba: {parse_err}")
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
    
-
+                                ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
@@ -682,7 +686,7 @@ async def top_command(interaction: discord.Interaction):
         )
         rank += 1  # Rang növelése
 
-    await interaction.channel.send(embed=embed)  # Embed küldése a csatornára
+    await interaction.followup.send(embed=embed,ephemeral=True)  # Embed küldése a csatornára
 
 # SLASH parancs: /level [user]
 @tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
@@ -859,6 +863,31 @@ async def slash_global_level(interaction: discord.Interaction, user: discord.Mem
         f'Összes XP: {total_xp}'
     )
 
+@tree.command(name="levels-recalculated")
+async def levels_recalculated(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    cursor = None
+    try:
+        cursor = leveldb.cursor()
+        # Csak a szükséges oszlopokat kérdezzük le (feltételezve, hogy xp az oszlop neve)
+        cursor.execute('SELECT id, server_id, user_xp FROM server_users')
+        result = cursor.fetchall()
+        for row in result:
+            cursor.execute(
+                'UPDATE server_users SET level = %s WHERE id = %s AND server_id = %s',
+                (level(row[2]), row[0], row[1])
+            )
+        # Módosítások véglegesítése
+        leveldb.commit()
+        await interaction.followup.send("Szintek újraszámolva.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Hiba: {str(e)}", ephemeral=True)
+        return
+    finally:
+        if cursor is not None:
+            cursor.close()
+                            ###################szint rendszer###################
 
 @tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
 @app_commands.describe(text="üzenet")
@@ -922,9 +951,7 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             "Váratlan hiba történt az üzenet küldése közben.",
             ephemeral=True
         )
-        
-         
-         
+
 @send_group.command(name="server")
 @app_commands.describe(text="üzenet", channel="melyik csatornába?", user="kinek küldjem?")
 async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel, user: discord.Member | None = None):
@@ -1025,6 +1052,86 @@ async def slash_help(interaction: discord.Interaction):
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
+
+
+                                   ###################????###################
+
+@tree.command(name="sql")
+@app_commands.check(admin_check)
+@app_commands.describe(text="hivás")
+async def sql(interaction: discord.Interaction, text: str):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        return
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute(text)
+        result = cursor.fetchone()
+    except mysql.connector.Error as e:
+        await interaction.response.send_message(
+            f'Hiba a SQL-bevitelben: {e.msg}',
+            ephemeral=True
+        )
+        return
+    except Exception as e:
+        await interaction.response.send_message(
+            f'{e}',
+            ephemeral=True
+        )
+        return
+    finally:
+        cursor.close()
+    if result is None:
+        await interaction.response.send_message(
+            "üres lekérés",
+            ephemeral=True
+        )
+    await interaction.response.send_message(
+        str(result),
+        ephemeral=True
+    )
+
+@tree.command(name="poweroff")
+@app_commands.check(admin_check)
+async def poweroff(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "égveled"
+    )
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    os.system("poweroff")
+
+@tree.command(name="reboot")
+@app_commands.check(admin_check)
+async def reboot(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "mindjárt jövök"
+    )
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    os.system("reboot")
+
+@tree.command(name="update")
+@app_commands.check(admin_check)
+async def update(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "mindjárt jövök"
+    )
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    print(os.system("git pull"))
+    os.system("nohup python3 main.py &")
 
 
 ##################################################SLASH függvények######################################################
