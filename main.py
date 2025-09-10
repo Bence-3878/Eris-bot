@@ -1124,7 +1124,13 @@ async def update(interaction: discord.Interaction):
     await interaction.response.send_message(
         "mindjárt jövök"
     )
-    pass
+    if leveldb:
+        leveldb.close()  # Adatbázis kapcsolat lezárása
+    print("Bot leállítás kezdeményezve...")
+    await client.close()  # Discord kapcsolat tiszta lezárása
+    print(os.system("git pull"))
+    os.system("nohup python3 main.py &")
+
 
 ##################################################SLASH függvények######################################################
 
