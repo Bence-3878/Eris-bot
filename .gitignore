@@ -1,2 +1,7 @@
 .env
 .env.local
+CMakeLists.txt
+discord.log
+.idea
+.venv
+.venv1
