@@ -53,8 +53,8 @@ intents.members = True                              # Tag események engedélyez
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 
-level1 = 100                                        # Kiinduló XP költség az első szinthez
-levelq = 1.2                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
+level1 = 500                                        # Kiinduló XP költség az első szinthez
+levelq = 1.04                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
 levels = [0,level1]
 for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
@@ -62,7 +62,6 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
     levels.append(m)                                # Hozzáadás a listához
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
-
 
 sess = requests.Session()
 
@@ -687,7 +686,7 @@ async def top_command(interaction: discord.Interaction):
         )
         rank += 1  # Rang növelése
 
-    await interaction.channel.send(embed=embed,ephemeral=True)  # Embed küldése a csatornára
+    await interaction.followup.send(embed=embed,ephemeral=True)  # Embed küldése a csatornára
 
 # SLASH parancs: /level [user]
 @tree.command(name="level", description="Megmutatja a szintedet és XP-det (vagy egy megadott felhasználóét).")
@@ -864,7 +863,30 @@ async def slash_global_level(interaction: discord.Interaction, user: discord.Mem
         f'Összes XP: {total_xp}'
     )
 
+@tree.command(name="levels-recalculated")
+async def levels_recalculated(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
 
+    cursor = None
+    try:
+        cursor = leveldb.cursor()
+        # Csak a szükséges oszlopokat kérdezzük le (feltételezve, hogy xp az oszlop neve)
+        cursor.execute('SELECT id, server_id, user_xp FROM server_users')
+        result = cursor.fetchall()
+        for row in result:
+            cursor.execute(
+                'UPDATE server_users SET level = %s WHERE id = %s AND server_id = %s',
+                (level(row[2]), row[0], row[1])
+            )
+        # Módosítások véglegesítése
+        leveldb.commit()
+        await interaction.followup.send("Szintek újraszámolva.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Hiba: {str(e)}", ephemeral=True)
+        return
+    finally:
+        if cursor is not None:
+            cursor.close()
                             ###################szint rendszer###################
 
 @tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
@@ -1095,6 +1117,14 @@ async def reboot(interaction: discord.Interaction):
     print("Bot leállítás kezdeményezve...")
     await client.close()  # Discord kapcsolat tiszta lezárása
     os.system("reboot")
+
+@tree.command(name="update")
+@app_commands.check(admin_check)
+async def update(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "mindjárt jövök"
+    )
+    pass
 
 ##################################################SLASH függvények######################################################
 
