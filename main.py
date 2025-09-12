@@ -109,6 +109,9 @@ async def other_messege(message: discord.Message):
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     cursor = leveldb.cursor()
+    if message in "UwU" | "uwu" | "UwU!" | "uwu!" | "UwU!!" | "uwu!!":
+        xp += random.randint(20, 30)
+        await message.channel.send(f"UwU!")
 
 
     try:  # Adatbázis műveletek védett része
