@@ -238,6 +238,7 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
     
     # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
     await interaction.response.defer(ephemeral=ephemeral)
+    
 
     # Kérés futtatása külön szálon, fejlécekkel
     def _fetch():
@@ -320,11 +321,11 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
             soup = BeautifulSoup(html, 'html.parser')
             thumbnails = soup.find_all('span', class_='thumb')
 
-            image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
+        image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
 
-            if not image_links:
-                await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
-                return
+        if not image_links:
+            await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+            return
 
             # Random kép kiválasztása és küldése
             random_image = random.choice(image_links)
