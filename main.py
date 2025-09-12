@@ -227,8 +227,8 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 @tree.command(name="rule34", nsfw=True)
-@app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
-async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool = False):
+@app_commands.describe(ephemeral="Rejtett (ephemeral) választ kérsz?", search="Keresés")
+async def rule34(interaction: discord.Interaction, ephemeral: bool = False, search: str | None = None):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
     if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
             interaction.channel, discord.DMChannel)):
@@ -249,12 +249,20 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         }
         # a 'sess' meglévő requests.Session az alkalmazásban
         r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
-        r2 = sess.post(
-            "https://rule34.xxx/index.php?page=search",
-            data={"tags": f"{search}", "commit": "Search"},
-            headers=headers,
-            timeout=15,
-        )
+        if search is None:
+            r2 = sess.get("https://rule34.xxx/index.php?page=post&s=random", headers=headers, timeout=15)
+            # Extract the id from URL
+            url = r2.url
+            post_id = url.split('id=')[-1]
+            # Get final image for that id
+            r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
+        else:
+            r2 = sess.post(
+                "https://rule34.xxx/index.php?page=search",
+                data={"tags": f"{search}", "commit": "Search"},
+                headers=headers,
+                timeout=15,
+            )
         return r1.status_code, r2.status_code, r2.text
 
     try:
@@ -307,23 +315,43 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
 
         # HTML feldolgozása – keressünk néhány találati linket
     try:
+        if search is None:
+            soup = BeautifulSoup(html, 'html.parser')
+            thumbnails = soup.find_all('span', class_='thumb')
+
+            image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
+
+            if not image_links:
+                await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+                return
+
+            # Random kép kiválasztása és küldése
+            random_image = random.choice(image_links)
+            embed = discord.Embed(
+                title=search,
+                color=discord.Color.red()
+            )
+            embed.set_image(url=random_image)
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            return
         soup = BeautifulSoup(html, 'html.parser')
-        thumbnails = soup.find_all('span', class_='thumb')
-
-        image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
-
-        if not image_links:
-            await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+        print(soup)
+        # Keressük meg az eredeti kép linkjét
+        original_link = soup.find('a', {'class': 'link-list'}, string='Original image')
+        print(original_link)
+        if not original_link:
+            await interaction.followup.send("Nem találtam képet.", ephemeral=True)
             return
 
-        # Random kép kiválasztása és küldése
-        random_image = random.choice(image_links)
+        image_url = original_link['href']
         embed = discord.Embed(
             title=search,
             color=discord.Color.red()
         )
-        embed.set_image(url=random_image)
+        embed.set_image(url=image_url)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+
     except Exception as parse_err:
         print(f"Parsing hiba: {parse_err}")
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)

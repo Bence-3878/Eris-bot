@@ -1,4 +1,5 @@
 .env
+.env2
 .env.local
 CMakeLists.txt
 discord.log
