@@ -1,7 +1,9 @@
 .env
+.env2
 .env.local
 CMakeLists.txt
 discord.log
 .idea
 .venv
 .venv1
+nohup.out
