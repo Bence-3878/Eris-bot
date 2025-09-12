@@ -238,7 +238,6 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
     
     # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
     await interaction.response.defer(ephemeral=ephemeral)
-    
 
     # Kérés futtatása külön szálon, fejlécekkel
     def _fetch():
@@ -250,16 +249,18 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
         # a 'sess' meglévő requests.Session az alkalmazásban
         r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
         if search is None:
+            # Random kép lekérése
             r2 = sess.get("https://rule34.xxx/index.php?page=post&s=random", headers=headers, timeout=15)
             # Extract the id from URL
             url = r2.url
             post_id = url.split('id=')[-1]
             # Get final image for that id
             r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
+            #print(r2.text)
         else:
-            r2 = sess.post(
-                "https://rule34.xxx/index.php?page=search",
-                data={"tags": f"{search}", "commit": "Search"},
+            # Keresési találatok lekérése
+            r2 = sess.get(
+                f"https://rule34.xxx/index.php?page=post&s=list&tags={search}",
                 headers=headers,
                 timeout=15,
             )
@@ -334,11 +335,31 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
             embed.set_image(url=random_image)
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             return
+
         soup = BeautifulSoup(html, 'html.parser')
-        print(soup)
         # Keressük meg az eredeti kép linkjét
-        original_link = soup.find('a', {'class': 'link-list'}, string='Original image')
-        print(original_link)
+        #original_link = soup.find('div', {'class': 'link-list'}).find('a', string='Original image')
+
+
+
+        thumbnails = soup.find_all('span', class_='thumb')
+        image_links = [thumb.find('img')['src'] for thumb in thumbnails if thumb.find('img')]
+
+        if not image_links:
+            await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+            return
+
+        print(image_links)
+        original_link = soup.find('div', {'class': 'link-list'}).find('a', string='Original image')
+       ## Random kép kiválasztása és küldése
+       #random_image = random.choice(image_links)
+       #embed = discord.Embed(
+       #    title=search,
+       #    color=discord.Color.red()
+       #)
+       #embed.set_image(url=random_image)
+       #await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+       #return
         if not original_link:
             await interaction.followup.send("Nem találtam képet.", ephemeral=True)
             return
