@@ -52,6 +52,7 @@ intents.members = True                              # Tag események engedélyez
 
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
+sess = requests.Session()
 
 level1 = 500                                        # Kiinduló XP költség az első szinthez
 levelq = 1.04                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
@@ -63,10 +64,7 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
-sess = requests.Session()
-
- 
-#####################################################init###############################################################
+######################init##########################
 
 
 def gPX(message: discord.Message):                                         # Heurisztikus XP egy üzenetre
@@ -109,9 +107,6 @@ async def other_messege(message: discord.Message):
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     cursor = leveldb.cursor()
-    if message in "UwU" | "uwu" | "UwU!" | "uwu!" | "UwU!!" | "uwu!!":
-        xp += random.randint(20, 30)
-        await message.channel.send(f"UwU!")
 
 
     try:  # Adatbázis műveletek védett része
@@ -201,7 +196,7 @@ async def other_messege(message: discord.Message):
                 except Exception as dm_err:
                     print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
 
-                
+
     except mysql.connector.Error as e:
         await message.channel.send(f'Hiba frissítés közben: {e.msg}')
 
@@ -238,10 +233,10 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         await interaction.response.send_message(
             "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
         return
-    
+
     # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
     await interaction.response.defer(ephemeral=ephemeral)
-    
+
 
     # Kérés futtatása külön szálon, fejlécekkel
     def _fetch():
@@ -330,7 +325,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
     except Exception as parse_err:
         print(f"Parsing hiba: {parse_err}")
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
-   
+
                                 ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
@@ -378,7 +373,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
-        return 
+        return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
         try:
@@ -649,7 +644,7 @@ async def top_command(interaction: discord.Interaction):
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
-        return 
+        return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
         try:
@@ -734,7 +729,7 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
-        return 
+        return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
         try:
@@ -963,7 +958,7 @@ async def send_server(interaction: discord.Interaction, text: str, channel: disc
 
         # Megpróbáljuk elküldeni az üzenetet a szerverre
         await channel.send(f"{user.mention} {text}")
-        
+
         # Sikeres küldés visszajelzése
         await interaction.followup.send(
             f"Üzenet sikeresen elküldve {user.mention} részére!",
@@ -1039,7 +1034,7 @@ async def slash_help(interaction: discord.Interaction):
             admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
             if admin_user is not None:
                 guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None) 
+                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
                                                                   and getattr(interaction.channel, "name", None)) else "#ismeretlen-csatorna"
                 await admin_user.send(
                     f"Parancs: {interaction.command.name}\n"
