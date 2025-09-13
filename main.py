@@ -64,6 +64,8 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
+error_channel = client.get_channel(1416450862674477206)
+
 ######################init##########################
 
 
@@ -101,13 +103,11 @@ def level(xp):                                      # XP -> szint átalakítás 
 async def other_messege(message: discord.Message):
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
         return
-    # DM-ek kizárása – szerverhez nem kötött üzenetnél nincs guild/id
+
+    # Ne legyen negatív XP
+    xp = gPX(message)  # XP becslés az üzenet tartalmából
+    cursor = leveldb.cursor()
     if message.guild is None:
-        # Ne legyen negatív XP
-        xp = gPX(message)  # XP becslés az üzenet tartalmából
-        cursor = leveldb.cursor()
-
-
         try:  # Adatbázis műveletek védett része
 
             # Meglévő adatok lekérdezése
@@ -116,84 +116,117 @@ async def other_messege(message: discord.Message):
                 (message.author.id)
             )
             row = cursor.fetchone()  # Eredmény beolvasása
-
-
-            if row is None:  # Ha új felhasználó ezen a szerveren
-                try:  # Beszúrás próbálkozás
-                    cursor.execute(
-                        'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                        (message.author.id, 0, xp, 0)
-                    )
-                    leveldb.commit()  # Tranzakció véglegesítése
-                except mysql.connector.Error as e:  # DB hiba esetén
-                    leveldb.rollback()  # Visszagörgetés
-                    await message.channel.send(f'Hiba az adatbázis beszúráskor: {e.msg}')  # Hibaüzenet
-                    try:
-                        admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
-                        if admin_user is not None:
-                            guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
-                            channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
-                                                                              and getattr(message.channel, "name",
-                                                                                          None)) else "#ismeretlen-csatorna"
-                            await admin_user.send(
-                                f"XP rendszer hiba újelem beszúrásánál\n"
-                                f"Váratlan hiba történt: {str(e)}"
-                                f"Hely: {guild_name} | {channel_name}\n"
-                                f"Küldő: {message.user} (ID: {message.user.id})"
-                            )
-                    except Exception as dm_err:
-                        print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
-
-            else:  # Ha már létezik rekord
-                current_xp = row[0] + xp  # Új összesített XP kiszámítása
-                if current_xp < 0:
-                    current_xp = 0
-                new_level = level(current_xp)  # Új szint meghatározása
-                try:  # Frissítés és szintlépés kezelése
-                    # Felhasználó rekordjának frissítése
-                    cursor.execute(
-                        'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = 0',
-                        (current_xp, new_level, message.author.id)
-                    )
-                    leveldb.commit()  # Tranzakció véglegesítése
-
-                    # Szintlépés értesítés csak sikeres commit után
-                    if row[1] < new_level:
-                        try:
-                            await message.author.send(f"Annyit beszéltél a bottal DM-ben hogy {new_level}. szintű lettél.\n"
-                                                      f"Ennél értelmesebb dolgot is lehetne csinálni")
-
-                        except Exception:
-                            pass
-                except mysql.connector.Error as e:
-                    leveldb.rollback()  # Visszagörgetés
-                    try:
-                        admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
-                        if admin_user is not None:
-                            guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
-                            channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
-                                                                              and getattr(message.channel, "name",
-                                                                                          None)) else "#ismeretlen-csatorna"
-                            await admin_user.send(
-                                f"Hiba XP frissítés közben\n"
-                                f"Váratlan hiba történt: {str(e)}"
-                                f"Hely: {guild_name} | {channel_name}\n"
-                                f"Küldő: {message.user} (ID: {message.user.id})"
-                            )
-                    except Exception as dm_err:
-                        print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
-
-
         except mysql.connector.Error as e:
-            await message.channel.send(f'Hiba frissítés közben: {e.msg}')
+            await error_channel.send(
+                f"XP rendszer hiba újelem beszúrásánál\n"
+                f"Váratlan hiba történt: {str(e)}\n"
+                f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+            )
+            try:
+                admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                if admin_user is not None:
+                    await admin_user.send(
+                        f"XP rendszer hiba újelem beszúrásánál\n"
+                        f"Váratlan hiba történt: {str(e)}\n"
+                        f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                    )
+            except Exception as dm_err:
+                logging.error(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+            cursor.close()  # Kurzor lezárása
+            return
+        if row is None:  # Ha új felhasználó ezen a szerveren
+            try:  # Beszúrás próbálkozás
+                cursor.execute(
+                    'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                    (message.author.id, 0, xp, 0)
+                )
+                leveldb.commit()  # Tranzakció véglegesítése
+            except mysql.connector.Error as e:  # DB hiba esetén
+                leveldb.rollback()  # Visszagörgetés
+                cursor.close()  # Kurzor lezárása
+                await error_channel.send(
+                            f"XP rendszer hiba újelem beszúrásánál\n"
+                            f"Váratlan hiba történt: {str(e)}\n"
+                            f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                        )
+                try:
+                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                    if admin_user is not None:
+                        await admin_user.send(
+                            f"XP rendszer hiba újelem beszúrásánál\n"
+                            f"Váratlan hiba történt: {str(e)}\n"
+                            f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                        )
+                except Exception as dm_err:
+                    logging.error(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+                return
+
+        else:  # Ha már létezik rekord
+            current_xp = row[0] + xp  # Új összesített XP kiszámítása
+            if current_xp < 0:
+                current_xp = 0
+            new_level = level(current_xp)  # Új szint meghatározása
+            try:  # Frissítés és szintlépés kezelése
+                # Felhasználó rekordjának frissítése
+                cursor.execute(
+                    'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = 0',
+                    (current_xp, new_level, message.author.id)
+                )
+                leveldb.commit()  # Tranzakció véglegesítése
+
+                # Szintlépés értesítés csak sikeres commit után
+                if row[1] < new_level:
+
+                    await message.author.send(f"Annyit beszéltél a bottal DM-ben hogy {new_level}. szintű lettél.\n"
+                                                  f"Ennél értelmesebb dolgot is lehetne csinálni")
+
+
+            except mysql.connector.Error as e:
+                leveldb.rollback()  # Visszagörgetés
+                cursor.close()  # Kurzor lezárása
+                await error_channel.send(
+                    f"Hiba XP frissítés közben\n"
+                    f"Váratlan hiba történt: {str(e)}"
+                    f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                )
+                try:
+                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                    if admin_user is not None:
+                        await admin_user.send(
+                            f"Hiba XP frissítés közben\n"
+                            f"Váratlan hiba történt: {str(e)}"
+                            f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                        )
+                except Exception as dm_err:
+                    logging.error(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+                return
+
+            except Exception as e:
+                leveldb.rollback()  # Visszagörgetés
+                cursor.close()  # Kurzor lezárása
+                await error_channel.send(
+                    f"Hiba XP frissítés közben\n"
+                    f"Váratlan hiba történt: {str(e)}"
+                    f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                )
+                try:
+                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
+                    if admin_user is not None:
+                        await admin_user.send(
+                            f"Hiba XP frissítés közben\n"
+                            f"Váratlan hiba történt: {str(e)}"
+                            f"{message.user} (ID: {message.user.id}) DM üzenet írt a botnak"
+                        )
+                except Exception as dm_err:
+                    logging.error(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+                return
+
+
+
 
 
     else:
-        # Ne legyen negatív XP
-        xp = gPX(message)  # XP becslés az üzenet tartalmából
-        cursor = leveldb.cursor()
-
-
         try:  # Adatbázis műveletek védett része
             # Szerver beállítások lekérdezése: csak a szükséges oszlopok
             cursor.execute('SELECT level_up_ch, level_sys FROM servers WHERE id = %s', (message.guild.id,))
