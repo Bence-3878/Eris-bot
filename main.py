@@ -342,7 +342,7 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 
-@tree.command(name="rule34", nsfw=True)
+@tree.command(name="rule34", nsfw=False)
 @app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
 async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool = False):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
