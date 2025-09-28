@@ -66,6 +66,7 @@ admin_id = 543856425131180036                       # Az admin fő fiókjának I
 
 error_channel = 1416450862674477206
 
+test = False
 ######################init##########################
 
 
@@ -188,18 +189,19 @@ async def other_messege(message: discord.Message):
     OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
-        m = ""
         if any(uwu in message.content.lower() for uwu in UwU):
             m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
             await error_messege(message, "Nincs adatbázis kapcsolat.")
             await message.channel.send(m)
         return
+
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     if any(uwu in message.content.lower() for uwu in UwU):
         xp += random.randint(20, 30)
         m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 4))
         await message.channel.send(m)
+
 
     cursor = leveldb.cursor()
     if message.guild is None:
