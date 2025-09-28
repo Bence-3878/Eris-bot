@@ -1045,28 +1045,30 @@ HELP_MESSAGE = """**Bot Parancsok**
 *Üzenet parancsok:*
 • `/send dm <üzenet> <felhasználó>` - Privát üzenet küldése
 • `/send server <üzenet> <csatorna> [felhasználó]` - Üzenet küldése szerver csatornába
+
+*Admin parancsok:*
+• `/sql <text>` - sql lekérdezés (bot admin)
+• `/poweroff` - bot leállítás (bot admin)
+• `/reboot` - bot újraindítás (bot admin)
+• `/update` - bot frissítés (bot admin)
+
+"""
+
+HELP_MESSAGE_NSFW = """**NSFW parancsok**
+• `/rule34` - nsfw kép generálás (NSFWcsatornában)
 """
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
 async def slash_help(interaction: discord.Interaction):
     try:
-        await interaction.response.send_message(HELP_MESSAGE)
+        if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
+            interaction.channel, discord.DMChannel)):
+            await interaction.response.send_message(HELP_MESSAGE)
+        else:
+            await interaction.response.send_message(HELP_MESSAGE + HELP_MESSAGE_NSFW)
     except discord.HTTPException:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name", None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Hiba történt a súgó megjelenítésekor.\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, "Hiba történt a súgó megjelenítésekor.")
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
