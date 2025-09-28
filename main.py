@@ -216,7 +216,8 @@ async def admin_check(interaction: discord.Interaction) -> bool:
         raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
     return True
 
-
+async def error_admin(interaction: discord.Interaction):
+    pass
 
 
 
@@ -614,7 +615,16 @@ tree.add_command(xp_group)
 @tree.command(name="top")
 async def top_command(interaction: discord.Interaction):
     if leveldb is None:  # DB nélkül nem megy
-        await interaction.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
+        await interaction.response.send_message('Az adatbázis nem érhető el,'
+                                                ' a toplista ideiglenesen nem működik.'
+                                                ,ephemeral=True)  # Visszajelzés
+        admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+        if admin_user is not None:
+            await admin_user.send(
+                f"Parancs: {interaction.command.name}\n"
+                f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                f"Az adatbázis nem érhető el."
+            )
         return
     cursor = leveldb.cursor()  # Kurzor nyitása
     try:  # Védett DB művelet
