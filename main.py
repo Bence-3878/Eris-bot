@@ -198,10 +198,12 @@ async def other_messege(message: discord.Message):
            "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
            "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
 
+    OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
+
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
         m = ""
         if any(uwu in message.content.lower() for uwu in UwU):
-            m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+            m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
         if test:
             await message.channel.send(m + "    teszt")
             await error_messege(message, "Nincs adatbázis kapcsolat.")
@@ -214,7 +216,7 @@ async def other_messege(message: discord.Message):
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     if any(uwu in message.content.lower() for uwu in UwU):
         xp += random.randint(20, 30)
-        m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+        m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 4))
         await message.channel.send(m)
 
 
@@ -758,59 +760,33 @@ async def slash_level(interaction: discord.Interaction, user: discord.Member | N
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
             ephemeral=True
         )
-        return
-    if interaction.guild is None:
-        await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
+        error_interaction(interaction,"Az adatbázis nem érhető el.")
         return
 
     target = user or interaction.user
     cursor = leveldb.cursor()
     try:
-        cursor.execute(
-            'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
-            (target.id, interaction.guild.id)
-        )
+        if interaction.guild is None:
+            cursor.execute(
+                'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = 0',
+                (target.id,)
+            )
+        else:
+            cursor.execute(
+                'SELECT id, user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
+                (target.id, interaction.guild.id)
+            )
         result = cursor.fetchone()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Adatbázis hiba: {e.msg}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
-
+        error_interaction(interaction,"Adatbázis hiba", e)
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
         return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
-
+        error_interaction(interaction, e)
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
@@ -1266,7 +1242,7 @@ async def on_ready():                               # Akkor fut, amikor a bot si
 
             if row1 is None:
                 cursor.execute(
-                'INSERT INTO servers (id, level_system_enabled) VALUES (0, 1)')
+                'INSERT INTO servers (id) VALUES (0)')
                 leveldb.commit()
         except Exception as e:
             pass
