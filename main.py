@@ -63,6 +63,7 @@ for i in range(1,100):                              # 1-től 99-ig generálunk k
     levels.append(m)                                # Hozzáadás a listához
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
+error_channel = 1416450862674477206                 # Az error channel ID-a
 
 ######################init##########################
 
@@ -218,22 +219,34 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 async def error_messege(interaction: discord.Interaction | discord.Message, string: str, e: Exception = None,):
+    # Configure error logging
+    error_handler = logging.FileHandler('error.log')
+    error_handler.setLevel(logging.ERROR)
+    error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    error_handler.setFormatter(error_formatter)
+    logger = logging.getLogger('discord')
+    logger.addHandler(error_handler)
+
     try:
         admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+        channel = client.get_channel(error_channel)
         if admin_user is not None:
             guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
                                                               and getattr(interaction.channel, "name",
                                                                           None)) else "#ismeretlen-csatorna"
-            await admin_user.send(
+            error_msg = (
                 f"Parancs: {interaction.command.name}\n"
                 f"Váratlan hiba történt: {str(e)}\n"
                 f"Hely: {guild_name} | {channel_name}\n"
                 f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
                 f"Komment: {string}"
             )
+            logger.error(error_msg)
+            await admin_user.send(error_msg)
+            await channel.send(error_msg)
     except Exception as dm_err:
-        print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        logger.error(f"DM error: {dm_err}")
 
 
 ##############################################aszinkron függvények######################################################
