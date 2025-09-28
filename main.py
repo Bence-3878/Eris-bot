@@ -137,22 +137,7 @@ async def other_messege(message: discord.Message):
                 leveldb.commit()  # Tranzakció véglegesítése
             except mysql.connector.Error as e:  # DB hiba esetén
                 leveldb.rollback()  # Visszagörgetés
-                await message.channel.send(f'Hiba az adatbázis beszúráskor: {e.msg}')  # Hibaüzenet
-                try:
-                    admin_user = message.client.get_user(admin_id) or await message.client.fetch_user(admin_id)
-                    if admin_user is not None:
-                        guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
-                        channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
-                                                                          and getattr(message.channel, "name",
-                                                                                      None)) else "#ismeretlen-csatorna"
-                        await admin_user.send(
-                            f"XP rendszer hiba újelem beszúrásánál\n"
-                            f"Váratlan hiba történt: {str(e)}"
-                            f"Hely: {guild_name} | {channel_name}\n"
-                            f"Küldő: {message.user} (ID: {message.user.id})"
-                        )
-                except Exception as dm_err:
-                    print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+                await error_messege(message,f'Hiba az adatbázis beszúráskor: {e.msg}',e)
 
         else:  # Ha már létezik rekord
             current_xp = row[0] + xp  # Új összesített XP kiszámítása
