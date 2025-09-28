@@ -98,170 +98,7 @@ def level(xp):                                      # XP -> szint átalakítás 
 
 ###############################################egyszerű függvények######################################################
 
-
-
-async def other_messege(message: discord.Message):
-    UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
-           "OwO", "owo", "OWO", "oWo", "Owo", "owO", "OWo", "oWO",
-           "TwT", "tWT", "tWT", "tWt", "twt", "tWT", "tWt", "tWT",
-           "O_o", "o_o", "O_O", "o_O", "O.o", "o.O", "O.O", "o.o",
-           "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
-           "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
-
-    if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
-        if any(uwu in message.content.lower() for uwu in UwU):
-            m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
-            await message.channel.send(m)
-        await error_messege(message, "Nincs adatbázis kapcsolat.")
-        return
-
-    # Ne legyen negatív XP
-    xp = gPX(message)  # XP becslés az üzenet tartalmából
-    if any(uwu in message.content.lower() for uwu in UwU):
-        xp += random.randint(20, 30)
-        m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
-        await message.channel.send(m)
-
-
-    cursor = leveldb.cursor()
-    if message.guild is None:
-        try:  # Adatbázis műveletek védett része
-
-            # Meglévő adatok lekérdezése
-            cursor.execute(
-                'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = 0',
-                (message.author.id)
-            )
-            row = cursor.fetchone()  # Eredmény beolvasása
-        except mysql.connector.Error as e:
-            await error_messege(message, "Hiba az adatbázis lekérdezéssel", e)
-
-            cursor.close()  # Kurzor lezárása
-            return
-        if row is None:  # Ha új felhasználó ezen a szerveren
-            try:  # Beszúrás próbálkozás
-                cursor.execute(
-                    'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                    (message.author.id, 0, xp, 0)
-                )
-                leveldb.commit()  # Tranzakció véglegesítése
-            except mysql.connector.Error as e:  # DB hiba esetén
-                leveldb.rollback()  # Visszagörgetés
-                cursor.close()  # Kurzor lezárása
-                await error_messege(message, "XP rendszer hiba újelem beszúrásánál", e)
-
-        else:  # Ha már létezik rekord
-            current_xp = row[0] + xp  # Új összesített XP kiszámítása
-            if current_xp < 0:
-                current_xp = 0
-            new_level = level(current_xp)  # Új szint meghatározása
-            try:  # Frissítés és szintlépés kezelése
-                # Felhasználó rekordjának frissítése
-                cursor.execute(
-                    'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = 0',
-                    (current_xp, new_level, message.author.id)
-                )
-                leveldb.commit()  # Tranzakció véglegesítése
-
-                # Szintlépés értesítés csak sikeres commit után
-                if row[1] < new_level:
-
-                    await message.author.send(f"Annyit beszéltél a bottal DM-ben hogy {new_level}. szintű lettél.\n"
-                                                  f"Ennél értelmesebb dolgot is lehetne csinálni")
-
-
-
-            except Exception as e:
-                leveldb.rollback()  # Visszagörgetés
-                cursor.close()  # Kurzor lezárása
-                await error_messege(message, "Hiba XP frissítés közben", e)
-                return
-
-
-
-
-
-    else:
-        try:  # Adatbázis műveletek védett része
-            # Szerver beállítások lekérdezése: csak a szükséges oszlopok
-            cursor.execute('SELECT level_up_ch, level_sys FROM servers WHERE id = %s', (message.guild.id,))
-            row1 = cursor.fetchone()
-            # Ha nincs szerver rekord, vagy ki van kapcsolva a szint rendszer, kilépünk
-            if not row1:
-                return
-            level_up_ch, level_sys = row1
-
-
-            # Meglévő adatok lekérdezése
-            cursor.execute(
-                'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
-                (message.author.id, message.guild.id)
-            )
-            row = cursor.fetchone()  # Eredmény beolvasása
-
-
-            if row is None:  # Ha új felhasználó ezen a szerveren
-                try:  # Beszúrás próbálkozás
-                    cursor.execute(
-                        'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                        (message.author.id, message.guild.id, xp, 0)
-                    )
-                    leveldb.commit()  # Tranzakció véglegesítése
-                except mysql.connector.Error as e:  # DB hiba esetén
-                    leveldb.rollback()  # Visszagörgetés
-                    await error_messege(message,f'Hiba az adatbázis beszúráskor: {e.msg}',e)
-
-            else:  # Ha már létezik rekord
-                current_xp = row[0] + xp  # Új összesített XP kiszámítása
-                if current_xp < 0:
-                    current_xp = 0
-                new_level = level(current_xp)  # Új szint meghatározása
-                try:  # Frissítés és szintlépés kezelése
-                    # Felhasználó rekordjának frissítése
-                    cursor.execute(
-                        'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-                        (current_xp, new_level, message.author.id, message.guild.id)
-                    )
-                    leveldb.commit()  # Tranzakció véglegesítése
-
-                    # Szintlépés értesítés csak sikeres commit után
-                    if row[1] < new_level and row1[1] == 1:
-                        channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
-                        try:
-                            await message.author.send(f"{new_level}. szintű lettél")
-
-                        except Exception:
-                            pass
-                        if channel is not None:
-                            await channel.send(f"{message.author.mention} {new_level}. szintű lett")
-                        else:
-                            await message.channel.send(f"{message.author.mention} {new_level}. szintű lett")
-                except mysql.connector.Error as e:
-                    leveldb.rollback()  # Visszagörgetés
-                    await error_messege(message, "Hiba XP frissítés közben", e)
-
-
-        except mysql.connector.Error as e:
-            await error_messege(message, f'Hiba frissítés közben: {e.msg}', e)
-
-        finally:  # Mindig lefut
-            cursor.close()  # Kurzor lezárása
-
-# Közös jogosultság ellenőrzés: csak szerveren, és csak admin vagy az admin_id
-async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
-    if interaction.guild is None:
-        raise app_commands.CheckFailure('Ez a parancs csak szerveren használható.')
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
-        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
-    return True
-
-async def admin_check(interaction: discord.Interaction) -> bool:
-    if not (interaction.user.id == admin_id):
-        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
-    return True
-
-
-async def error_messege(interaction: discord.Interaction | discord.Message, string: str = "", e: Exception = None,):
+async def error_messege(interaction: discord.Interaction , string: str = "", e: Exception = None,):
     # Configure error logging
     error_handler = logging.FileHandler('error.log')
     error_handler.setLevel(logging.ERROR)
@@ -300,6 +137,207 @@ async def error_messege(interaction: discord.Interaction | discord.Message, stri
     except Exception as dm_err:
         logger.error(f"DM error: {dm_err}")
     return
+
+async def error_messege2(message: discord.Message, string: str = "", e: Exception = None, ):
+    # Configure error logging
+    error_handler = logging.FileHandler('error.log')
+    error_handler.setLevel(logging.ERROR)
+    error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    error_handler.setFormatter(error_formatter)
+    logger = logging.getLogger('discord')
+    logger.addHandler(error_handler)
+
+    try:
+        admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
+        channel = client.get_channel(error_channel)
+        if admin_user is not None:
+            guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
+            channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
+                                                          and getattr(message.channel, "name",
+                                                                      None)) else "#ismeretlen-csatorna"
+            channel_id = message.channel.id if getattr(message, "channel", None) else None
+            if e is None:
+                error_msg = (
+                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.user.name})"
+                )
+            else:
+                error_msg = (
+                    f"Hiba: {str(e)}\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.user.name})"
+                )
+            if string != "":
+                error_msg = error_msg + "\nKomment: " + string
+            logger.error(error_msg)
+            await admin_user.send(error_msg)
+            await channel.send(error_msg)
+    except Exception as dm_err:
+        logger.error(f"DM error: {dm_err}")
+    return
+
+
+async def other_messege(message: discord.Message):
+    UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
+           "OwO", "owo", "OWO", "oWo", "Owo", "owO", "OWo", "oWO",
+           "TwT", "tWT", "tWT", "tWt", "twt", "tWT", "tWt", "tWT",
+           "O_o", "o_o", "O_O", "o_O", "O.o", "o.O", "O.O", "o.o",
+           "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
+           "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
+
+    if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
+        if any(uwu in message.content.lower() for uwu in UwU):
+            m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+            await message.channel.send(m + "    teszt")
+        await error_messege2(message, "Nincs adatbázis kapcsolat.")
+        return
+
+    # Ne legyen negatív XP
+    xp = gPX(message)  # XP becslés az üzenet tartalmából
+    if any(uwu in message.content.lower() for uwu in UwU):
+        xp += random.randint(20, 30)
+        m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+        await message.channel.send(m)
+
+
+    cursor = leveldb.cursor()
+    if message.guild is None:
+        try:  # Adatbázis műveletek védett része
+
+            # Meglévő adatok lekérdezése
+            cursor.execute(
+                'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = 0',
+                (message.author.id)
+            )
+            row = cursor.fetchone()  # Eredmény beolvasása
+        except mysql.connector.Error as e:
+            await error_messege2(message, "Hiba az adatbázis lekérdezéssel", e)
+
+            cursor.close()  # Kurzor lezárása
+            return
+        if row is None:  # Ha új felhasználó ezen a szerveren
+            try:  # Beszúrás próbálkozás
+                cursor.execute(
+                    'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                    (message.author.id, 0, xp, 0)
+                )
+                leveldb.commit()  # Tranzakció véglegesítése
+            except mysql.connector.Error as e:  # DB hiba esetén
+                leveldb.rollback()  # Visszagörgetés
+                cursor.close()  # Kurzor lezárása
+                await error_messege2(message, "XP rendszer hiba újelem beszúrásánál", e)
+
+        else:  # Ha már létezik rekord
+            current_xp = row[0] + xp  # Új összesített XP kiszámítása
+            if current_xp < 0:
+                current_xp = 0
+            new_level = level(current_xp)  # Új szint meghatározása
+            try:  # Frissítés és szintlépés kezelése
+                # Felhasználó rekordjának frissítése
+                cursor.execute(
+                    'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = 0',
+                    (current_xp, new_level, message.author.id)
+                )
+                leveldb.commit()  # Tranzakció véglegesítése
+
+                # Szintlépés értesítés csak sikeres commit után
+                if row[1] < new_level:
+
+                    await message.author.send(f"Annyit beszéltél a bottal DM-ben hogy {new_level}. szintű lettél.\n"
+                                                  f"Ennél értelmesebb dolgot is lehetne csinálni")
+
+
+
+            except Exception as e:
+                leveldb.rollback()  # Visszagörgetés
+                cursor.close()  # Kurzor lezárása
+                await error_messege2(message, "Hiba XP frissítés közben", e)
+                return
+
+
+
+
+
+    else:
+        try:  # Adatbázis műveletek védett része
+            # Szerver beállítások lekérdezése: csak a szükséges oszlopok
+            cursor.execute('SELECT level_up_ch, level_sys FROM servers WHERE id = %s', (message.guild.id,))
+            row1 = cursor.fetchone()
+            # Ha nincs szerver rekord, vagy ki van kapcsolva a szint rendszer, kilépünk
+            if not row1:
+                return
+            level_up_ch, level_sys = row1
+
+
+            # Meglévő adatok lekérdezése
+            cursor.execute(
+                'SELECT user_xp, level FROM server_users WHERE id = %s AND server_id = %s',
+                (message.author.id, message.guild.id)
+            )
+            row = cursor.fetchone()  # Eredmény beolvasása
+
+
+            if row is None:  # Ha új felhasználó ezen a szerveren
+                try:  # Beszúrás próbálkozás
+                    cursor.execute(
+                        'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                        (message.author.id, message.guild.id, xp, 0)
+                    )
+                    leveldb.commit()  # Tranzakció véglegesítése
+                except mysql.connector.Error as e:  # DB hiba esetén
+                    leveldb.rollback()  # Visszagörgetés
+                    await error_messege2(message,f'Hiba az adatbázis beszúráskor: {e.msg}',e)
+
+            else:  # Ha már létezik rekord
+                current_xp = row[0] + xp  # Új összesített XP kiszámítása
+                if current_xp < 0:
+                    current_xp = 0
+                new_level = level(current_xp)  # Új szint meghatározása
+                try:  # Frissítés és szintlépés kezelése
+                    # Felhasználó rekordjának frissítése
+                    cursor.execute(
+                        'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
+                        (current_xp, new_level, message.author.id, message.guild.id)
+                    )
+                    leveldb.commit()  # Tranzakció véglegesítése
+
+                    # Szintlépés értesítés csak sikeres commit után
+                    if row[1] < new_level and row1[1] == 1:
+                        channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
+                        try:
+                            await message.author.send(f"{new_level}. szintű lettél")
+
+                        except Exception:
+                            pass
+                        if channel is not None:
+                            await channel.send(f"{message.author.mention} {new_level}. szintű lett")
+                        else:
+                            await message.channel.send(f"{message.author.mention} {new_level}. szintű lett")
+                except mysql.connector.Error as e:
+                    leveldb.rollback()  # Visszagörgetés
+                    await error_messege2(message, "Hiba XP frissítés közben", e)
+
+
+        except mysql.connector.Error as e:
+            await error_messege2(message, f'Hiba frissítés közben: {e.msg}', e)
+
+        finally:  # Mindig lefut
+            cursor.close()  # Kurzor lezárása
+
+# Közös jogosultság ellenőrzés: csak szerveren, és csak admin vagy az admin_id
+async def admin_or_owner_check(interaction: discord.Interaction) -> bool:
+    if interaction.guild is None:
+        raise app_commands.CheckFailure('Ez a parancs csak szerveren használható.')
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == admin_id):
+        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
+    return True
+
+async def admin_check(interaction: discord.Interaction) -> bool:
+    if not (interaction.user.id == admin_id):
+        raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
+    return True
+
+
 
 
 ##############################################aszinkron függvények######################################################
