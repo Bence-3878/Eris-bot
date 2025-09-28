@@ -30,11 +30,13 @@ CREATE TABLE `server_users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `server_levels` (
-  `server_id` bigint UNSIGNED NOT NULL,
-  `level` int UNSIGNED NOT NULL DEFAULT 0,
-  `role_id` bigint UNSIGNED NOT NULL,
-  `level_sys_number` int DEFAULT 0,
-  PRIMARY KEY (`server_id`,`level`,`role_id`),
+  `level_sys_number` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `server_id` BIGINT UNSIGNED NOT NULL,
+  `level` INT UNSIGNED NOT NULL DEFAULT 0,
+  `role_id` BIGINT UNSIGNED NOT NULL,
+  `level_sys_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`level_sys_number`),
+  UNIQUE KEY `uq_server_level` (`server_id`, `level`),
   KEY `fk_server_level` (`server_id`),
   CONSTRAINT `fk_server_level` FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
