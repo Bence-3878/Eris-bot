@@ -341,6 +341,7 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 
+
 ##############################################aszinkron függvények######################################################
 
 
@@ -656,7 +657,8 @@ tree.add_command(xp_group)
 @tree.command(name="top")
 async def top_command(interaction: discord.Interaction):
     if leveldb is None:  # DB nélkül nem megy
-        await interaction.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
+        await interaction.response.send_message('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.'
+                                                ,ephemeral=True)  # Visszajelzés
         await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     cursor = leveldb.cursor()  # Kurzor nyitása
