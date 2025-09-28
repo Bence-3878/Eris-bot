@@ -185,20 +185,21 @@ async def other_messege(message: discord.Message):
            "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
            "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
 
-    if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
-        if any(uwu in message.content.lower() for uwu in UwU):
-            m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
-            await message.channel.send(m + "    teszt")
-        await error_messege2(message, "Nincs adatbázis kapcsolat.")
-        return
+    OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 
+    if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
+        m = ""
+        if any(uwu in message.content.lower() for uwu in UwU):
+            m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
+            await error_messege(message, "Nincs adatbázis kapcsolat.")
+            await message.channel.send(m)
+        return
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     if any(uwu in message.content.lower() for uwu in UwU):
         xp += random.randint(20, 30)
-        m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+        m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 4))
         await message.channel.send(m)
-
 
     cursor = leveldb.cursor()
     if message.guild is None:
