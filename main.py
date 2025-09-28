@@ -118,25 +118,22 @@ async def error_messege(interaction: discord.Interaction , string: str = "", e: 
             channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
                                                               and getattr(interaction.channel, "name",
                                                                           None)) else "#ismeretlen-csatorna"
-            channel_id = interaction.channel.id if getattr(interaction, "channel", None) else None
             channel_mention = getattr(getattr(interaction, "channel", None), "mention", "#ismeretlen-csatorna")
 
             if e is None:
                 error_msg = (
                     f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
-                    f"Hely: {guild_name} | {channel_mention}\n"
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    #f"Parancs: {interaction.command.name}\n"
+                    f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
                 )
                 logger.error(error_msg)
             else:
                 error_msg = (
                     f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
-                    f"Parancs: {interaction.command.name}\n"
+                    #f"Parancs: {interaction.command.name}\n"
                     f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_mention}\n"
-                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
                 )
                 logger.error(error_msg, exc_info=e)
@@ -172,21 +169,18 @@ async def error_messege2(message: discord.Message, string: str = "", e: Exceptio
             channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
                                                           and getattr(message.channel, "name",
                                                                       None)) else "#ismeretlen-csatorna"
-            channel_id = message.channel.id if getattr(message, "channel", None) else None
             channel_mention = getattr(getattr(message, "channel", None), "mention", "#ismeretlen-csatorna")
 
             if e is None:
                 error_msg = (
-                    f"Hely: {guild_name} | {channel_mention}\n"
-                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
                 logger.error(error_msg)
             else:
                 error_msg = (
                     f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_mention}\n"
-                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
                 logger.error(error_msg, exc_info=e)
