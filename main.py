@@ -101,14 +101,25 @@ def level(xp):                                      # XP -> szint átalakítás 
 
 
 async def other_messege(message: discord.Message):
+    UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
+           "OwO", "owo", "OWO", "oWo", "Owo", "owO", "OWo", "oWO",
+           "TwT", "tWT", "tWT", "tWt", "twt", "tWT", "tWt", "tWT",
+           "O_o", "o_o", "O_O", "o_O", "O.o", "o.O", "O.O", "o.o",
+           "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
+           "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
+    
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
+        if any(uwu in message.content.lower() for uwu in UwU):
+            m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+            await message.channel.send(m)
         return
 
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
-    if message in "UwU" | "uwu" | "UwU!" | "uwu!" | "UwU!!" | "uwu!!":
+    if any(uwu in message.content.lower() for uwu in UwU):
         xp += random.randint(20, 30)
         await message.channel.send(f"UwU!")
+
 
     cursor = leveldb.cursor()
     if message.guild is None:
