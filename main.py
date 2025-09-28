@@ -217,7 +217,23 @@ async def admin_check(interaction: discord.Interaction) -> bool:
     return True
 
 
-
+async def error_messege(interaction: discord.Interaction | discord.Message, string: str, e: Exception = None,):
+    try:
+        admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
+        if admin_user is not None:
+            guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
+            channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
+                                                              and getattr(interaction.channel, "name",
+                                                                          None)) else "#ismeretlen-csatorna"
+            await admin_user.send(
+                f"Parancs: {interaction.command.name}\n"
+                f"Váratlan hiba történt: {str(e)}\n"
+                f"Hely: {guild_name} | {channel_name}\n"
+                f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                f"Komment: {string}"
+            )
+    except Exception as dm_err:
+        print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
 
 
 ##############################################aszinkron függvények######################################################
