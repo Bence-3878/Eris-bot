@@ -66,6 +66,7 @@ admin_id = 543856425131180036                       # Az admin fő fiókjának I
 
 error_channel = 1416450862674477206
 
+test = False
 ######################init##########################
 
 
@@ -186,10 +187,14 @@ async def other_messege(message: discord.Message):
            "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
 
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
+        m = ""
         if any(uwu in message.content.lower() for uwu in UwU):
             m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
+        if test:
             await message.channel.send(m + "    teszt")
-        await error_messege2(message, "Nincs adatbázis kapcsolat.")
+            await error_messege2(message, "Nincs adatbázis kapcsolat.")
+        else:
+            await message.channel.send(m)
         return
 
     # Ne legyen negatív XP
