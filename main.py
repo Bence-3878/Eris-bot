@@ -66,7 +66,7 @@ admin_id = 543856425131180036                       # Az admin fő fiókjának I
 
 error_channel = 1416450862674477206
 
-test = False
+test = True
 ######################init##########################
 
 
@@ -1051,20 +1051,23 @@ HELP_MESSAGE = """**Bot Parancsok**
 • `/poweroff` - bot leállítás (bot admin)
 • `/reboot` - bot újraindítás (bot admin)
 • `/update` - bot frissítés (bot admin)
-
 """
 
-HELP_MESSAGE_NSFW = """**NSFW parancsok**
+HELP_MESSAGE_NSFW = """
+*NSFW parancsok*
 • `/rule34` - nsfw kép generálás (NSFWcsatornában)
 """
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
 async def slash_help(interaction: discord.Interaction):
     try:
-        if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
-            interaction.channel, discord.DMChannel)):
+        if not interaction.channel.is_nsfw() and not isinstance(interaction.channel, discord.DMChannel):
+            if test:
+                print(HELP_MESSAGE)
             await interaction.response.send_message(HELP_MESSAGE)
         else:
+            if test:
+                print(HELP_MESSAGE_NSFW)
             await interaction.response.send_message(HELP_MESSAGE + HELP_MESSAGE_NSFW)
     except discord.HTTPException:
         await interaction.response.defer(ephemeral=True)
