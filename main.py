@@ -46,6 +46,16 @@ if not token:                                       # Ha a token nincs megadva
                                                     # Hibát dobunk, hogy ne induljon el a bot
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')  # Naplófájl kezelő beállítása
+
+# Modul-szintű logger, egyszeri konfigurációval (duplikált handlerek elkerülése)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) and str(h.baseFilename).endswith("error.log")
+           for h in logger.handlers):
+    _err_handler = logging.FileHandler('error.log', encoding='utf-8')
+    _err_handler.setLevel(logging.ERROR)
+    _err_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(_err_handler)
 intents = discord.Intents.default()                 # Alapértelmezett intentek (engedélyek) létrehozása
 intents.message_content = True                      # Üzenettartalom olvasásának engedélyezése (parancsokhoz szükséges)
 intents.members = True                              # Tag események engedélyezése (pl. belépés)
@@ -99,14 +109,7 @@ def level(xp):                                      # XP -> szint átalakítás 
 ###############################################egyszerű függvények######################################################
 
 async def error_messege(interaction: discord.Interaction , string: str = "", e: Exception = None,):
-    # Configure error logging
-    error_handler = logging.FileHandler('error.log')
-    error_handler.setLevel(logging.ERROR)
-    error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    error_handler.setFormatter(error_formatter)
-    logger = logging.getLogger('discord')
-    logger.addHandler(error_handler)
-
+    # Egységesített, biztonságos hibaértesítő (nem ad hozzá új handlert hívásonként)
     try:
         admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
         channel = client.get_channel(error_channel)
@@ -116,64 +119,93 @@ async def error_messege(interaction: discord.Interaction , string: str = "", e: 
                                                               and getattr(interaction.channel, "name",
                                                                           None)) else "#ismeretlen-csatorna"
             channel_id = interaction.channel.id if getattr(interaction, "channel", None) else None
+            channel_mention = getattr(getattr(interaction, "channel", None), "mention", "#ismeretlen-csatorna")
+
             if e is None:
                 error_msg = (
+                    f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
+                    f"Hely: {guild_name} | {channel_mention}\n"
                     f"Parancs: {interaction.command.name}\n"
                     f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
                     f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
                 )
+                logger.error(error_msg)
             else:
                 error_msg = (
+                    f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
                     f"Parancs: {interaction.command.name}\n"
                     f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Hely: {guild_name} | {channel_mention}\n"
+                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
                     f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
                 )
-            if string != "":
-                error_msg = error_msg + "\nKomment: " + string
-            logger.error(error_msg)
-            await admin_user.send(error_msg)
-            await channel.send(error_msg)
+                logger.error(error_msg, exc_info=e)
+
+            if string:
+                error_msg = error_msg + "\nKomment: " + str(string)
+
+            # Discord 2000 karakteres limit
+            if len(error_msg) > 2000:
+                error_msg = error_msg[:1990] + "…"
+
+            # Küldés DM-ben az adminnak
+            with contextlib.suppress(Exception):
+                await admin_user.send(error_msg)
+
+            with contextlib.suppress(Exception):
+                await channel.send(error_msg)
     except Exception as dm_err:
-        logger.error(f"DM error: {dm_err}")
+        logger.error(f"DM/csatorna értesítés hiba: {dm_err}", exc_info=dm_err)
     return
 
 async def error_messege2(message: discord.Message, string: str = "", e: Exception = None, ):
-    # Configure error logging
-    error_handler = logging.FileHandler('error.log')
-    error_handler.setLevel(logging.ERROR)
-    error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    error_handler.setFormatter(error_formatter)
-    logger = logging.getLogger('discord')
-    logger.addHandler(error_handler)
-
+    # Egységesített, biztonságos hibaértesítő (nem ad hozzá új handlert hívásonként)
     try:
         admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
         channel = client.get_channel(error_channel)
+        if channel is None:
+            with contextlib.suppress(Exception):
+                channel = await client.fetch_channel(error_channel)
+
         if admin_user is not None:
             guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
                                                           and getattr(message.channel, "name",
                                                                       None)) else "#ismeretlen-csatorna"
             channel_id = message.channel.id if getattr(message, "channel", None) else None
+            channel_mention = getattr(getattr(message, "channel", None), "mention", "#ismeretlen-csatorna")
+
             if e is None:
                 error_msg = (
+                    f"Hely: {guild_name} | {channel_mention}\n"
                     f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
-                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.user.name})"
+                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
+                logger.error(error_msg)
             else:
                 error_msg = (
                     f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.user.name})"
+                    f"Hely: {guild_name} | {channel_mention}\n"
+                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
-            if string != "":
-                error_msg = error_msg + "\nKomment: " + string
-            logger.error(error_msg)
-            await admin_user.send(error_msg)
-            await channel.send(error_msg)
+                logger.error(error_msg, exc_info=e)
+
+            if string:
+                error_msg = error_msg + "\nKomment: " + str(string)
+
+            # Discord 2000 karakteres limit
+            if len(error_msg) > 2000:
+                error_msg = error_msg[:1990] + "…"
+
+            # Küldés DM-ben az adminnak
+            with contextlib.suppress(Exception):
+                await admin_user.send(error_msg)
+
+            with contextlib.suppress(Exception):
+                await channel.send(error_msg)
     except Exception as dm_err:
-        logger.error(f"DM error: {dm_err}")
+        logger.error(f"DM/csatorna értesítés hiba: {dm_err}", exc_info=dm_err)
     return
 
 
@@ -189,6 +221,7 @@ async def other_messege(message: discord.Message):
         if any(uwu in message.content.lower() for uwu in UwU):
             m = UwU[random.randint(0, 48)] + ("!" * random.randint(0, 4))
             await message.channel.send(m + "    teszt")
+            #await message.channel.send(m)
         await error_messege2(message, "Nincs adatbázis kapcsolat.")
         return
 
