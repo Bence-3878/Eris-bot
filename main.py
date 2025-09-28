@@ -218,7 +218,7 @@ async def admin_check(interaction: discord.Interaction) -> bool:
     return True
 
 
-async def error_messege(interaction: discord.Interaction | discord.Message, string: str, e: Exception = None,):
+async def error_messege(interaction: discord.Interaction | discord.Message, string: str = "", e: Exception = None,):
     # Configure error logging
     error_handler = logging.FileHandler('error.log')
     error_handler.setLevel(logging.ERROR)
@@ -235,18 +235,28 @@ async def error_messege(interaction: discord.Interaction | discord.Message, stri
             channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
                                                               and getattr(interaction.channel, "name",
                                                                           None)) else "#ismeretlen-csatorna"
-            error_msg = (
-                f"Parancs: {interaction.command.name}\n"
-                f"Váratlan hiba történt: {str(e)}\n"
-                f"Hely: {guild_name} | {channel_name}\n"
-                f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                f"Komment: {string}"
-            )
+            channel_id = interaction.channel.id if getattr(interaction, "channel", None) else None
+            if e is None:
+                error_msg = (
+                    f"Parancs: {interaction.command.name}\n"
+                    f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
+                    f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
+                )
+            else:
+                error_msg = (
+                    f"Parancs: {interaction.command.name}\n"
+                    f"Hiba: {str(e)}\n"
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
+                )
+            if string != "":
+                error_msg = error_msg + "\nKomment: " + string
             logger.error(error_msg)
             await admin_user.send(error_msg)
             await channel.send(error_msg)
     except Exception as dm_err:
         logger.error(f"DM error: {dm_err}")
+    return
 
 
 ##############################################aszinkron függvények######################################################
@@ -290,21 +300,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
 
     except Exception as e:
         # Hiba esetén értesítsük az admint és csendben térjünk vissza
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, "Az API nem elérhető.", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -314,21 +310,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
 
     if status_code != 200:
         # Admin értesítése, majd rövid hibaüzenet
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"A rule34.xxx nem sikerült elérni (HTTP {status_code})\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
         await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
         return
 
@@ -352,7 +334,7 @@ async def rule34(interaction: discord.Interaction, search: str, ephemeral: bool 
         embed.set_image(url=random_image)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
     except Exception as parse_err:
-        print(f"Parsing hiba: {parse_err}")
+        await error_messege(interaction, f"Parsing hiba: {parse_err}",parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
 
                                 ###################nsfw###################
@@ -368,6 +350,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
             ephemeral=True
         )
+        await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     if interaction.guild is None:
         await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
@@ -383,21 +366,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         result = cursor.fetchone()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Adatbázis hiba: {e.msg}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction,f"Adatbázis hiba: {e.msg}", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -405,21 +374,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -449,6 +404,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
 async def xp_add(interaction: discord.Interaction, user: discord.Member, amount: int):
     if leveldb is None:
         await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
     if amount <= 0:
@@ -482,21 +438,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
     except Exception as e:
         leveldb.rollback()
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -516,6 +458,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
 async def xp_remove(interaction: discord.Interaction, user: discord.Member, amount: int):
     if leveldb is None:
         await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
     if amount <= 0:
@@ -544,6 +487,7 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
     except Exception as e:
         leveldb.rollback()
         await interaction.response.defer(ephemeral=True)
+        await error_messege(interaction, e)
         try:
             admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
             if admin_user is not None:
@@ -579,6 +523,7 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
 async def xp_set(interaction: discord.Interaction, user: discord.Member, amount: int):
     if leveldb is None:
         await interaction.response.send_message('Az adatbázis nem érhető el.', ephemeral=True)
+        await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     # Jogosultság és guild ellenőrzés dekorátorokkal megoldva
     if amount < 0:
@@ -608,21 +553,7 @@ async def xp_set(interaction: discord.Interaction, user: discord.Member, amount:
     except Exception as e:
         leveldb.rollback()
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -644,6 +575,7 @@ tree.add_command(xp_group)
 async def top_command(interaction: discord.Interaction):
     if leveldb is None:  # DB nélkül nem megy
         await interaction.channel.send('Az adatbázis nem érhető el, a toplista ideiglenesen nem működik.')  # Visszajelzés
+        await error_messege(interaction, "Az adatbázis nem érhető el.")
         return
     cursor = leveldb.cursor()  # Kurzor nyitása
     try:  # Védett DB művelet
@@ -654,21 +586,8 @@ async def top_command(interaction: discord.Interaction):
         result = cursor.fetchall()  # Minden sor beolvasása
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Adatbázis hiba: {e.msg}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction,f"Adatbázis hiba: {e.msg}", e)
+
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -676,21 +595,8 @@ async def top_command(interaction: discord.Interaction):
         return
     except Exception as e:
         await interaction.response.defer(ephemeral=True)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_messege(interaction, e)
+
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
