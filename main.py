@@ -773,7 +773,7 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         )
         error_interaction(interaction,"Az adatbázis nem érhető el.")
         return
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer(ephemeral=False)
 
     target = user or interaction.user
     cursor = leveldb.cursor()
@@ -1062,9 +1062,6 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 
 *FŐADMIN parancsok:*
-• `/sql <text>` - sql lekérdezés (bot admin)
-• `/poweroff` - bot leállítás (bot admin)
-• `/reboot` - bot újraindítás (bot admin)
 • `/update` - bot frissítés (bot admin)
 """
 
