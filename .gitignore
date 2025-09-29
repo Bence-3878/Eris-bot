@@ -3,6 +3,8 @@
 .env.local
 CMakeLists.txt
 discord.log
+error.log
 .idea
 .venv
 .venv1
+nohup.out
