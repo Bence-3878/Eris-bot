@@ -1100,7 +1100,7 @@ async def send_level_system_enabled(interaction: discord.Interaction, enabled: b
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
-        await error_interaction(interaction,"Hiba a üdvözlő csatorna beállítása során", e)
+        await error_interaction(interaction, "Hiba a üdvözlő csatorna beállítása során", e)
         await interaction.response.send_message(
             f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
             ephemeral=True
@@ -1113,6 +1113,7 @@ async def send_level_system_enabled(interaction: discord.Interaction, enabled: b
         f"Sikerült beállítani a(z) {channel.mention} csatornát.",
         ephemeral=True
     )
+
 
 @tree.command(name="set_level_up_channel")
 @app_commands.describe(channel="melyik csatornába?")
@@ -1137,7 +1138,7 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
-        await error_interaction(interaction,"Hiba a szintlépő csatorna beállítása során", e)
+        await error_interaction(interaction, "Hiba a szintlépő csatorna beállítása során", e)
         await interaction.response.send_message(
             f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
             ephemeral=True
@@ -1150,6 +1151,7 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
         f"Sikerült beállítani a(z) {channel.mention} csatornát.",
         ephemeral=True
     )
+
 
 @tree.command(name="set_level_system_enabled")
 @app_commands.describe(enabled="endedélyezed aszint rendszert?")
@@ -1174,7 +1176,7 @@ async def send_level_system_enabled(interaction: discord.Interaction, enabled: b
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
-        await error_interaction(interaction,"Hiba történt a szintrendszer engedélyének beállítása során", e)
+        await error_interaction(interaction, "Hiba történt a szintrendszer engedélyének beállítása során", e)
         await interaction.response.send_message(
             f"**NEM** sikerült beállítani.",
             ephemeral=True
