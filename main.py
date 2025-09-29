@@ -1,4 +1,5 @@
 import asyncio
+from gc import enable
 from pickle import FALSE, GLOBAL
 
 import discord                                      # Discord bot kliens
@@ -141,8 +142,6 @@ async def error_interaction(interaction: discord.Interaction, string: str = "", 
     return
 
 async def error_messege(message: discord.Message, string: str = "", e: Exception = None, ):
-    if test:
-        print("error messege2")
     # Configure error logging
     error_handler = logging.FileHandler('error.log')
     error_handler.setLevel(logging.ERROR)
@@ -150,23 +149,15 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
     error_handler.setFormatter(error_formatter)
     logger = logging.getLogger('discord')
     logger.addHandler(error_handler)
-    if test:
-        print(f"message: {message}")
     try:
         admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
         channel = client.get_channel(error_channel)
-        if test:
-            print("channel")
-            print(channel)
         if admin_user is not None:
             guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
                                                           and getattr(message.channel, "name",
                                                                       None)) else "#ismeretlen-csatorna"
             channel_id = message.channel.id if getattr(message, "channel", None) else None
-            if test:
-                print("channel id")
-                print(channel_id)
             if e is None:
                 error_msg = (
                     f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
@@ -178,8 +169,6 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
                     f"Hely: {guild_name} | {channel_name} | <#{channel_id}>\n"
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
-            if test:
-                print(error_msg)
 
             if string != "":
                 error_msg = error_msg + "\nKomment: " + string
@@ -331,8 +320,8 @@ async def other_messege(message: discord.Message):
             channel = client.get_channel(int(level_up_ch)) if level_up_ch else None
             try:
                 await message.author.send(f"{new_level}. szintű lettél")
-            except Exception:
-                pass
+            except Exception as e:
+                error_messege(message,"Nem sikerült elküldeni a privát üzenetet",e)
 
             if channel is not None:
                 await channel.send(f"{message.author.mention} {new_level}. szintű lett")
@@ -789,8 +778,6 @@ async def top_command(interaction: discord.Interaction, monthly: bool = False, g
         return
     finally:  # Mindig lefut
         cursor.close()  # Kurzor zárása
-    if test:
-        print(result)
 
     embed = discord.Embed(
         title="Top 10 Felhasználó",
@@ -987,9 +974,7 @@ async def slash_test(interaction: discord.Interaction, text: str):
     # A slash opciót paraméterként kapjuk meg
     print(text)
 
-#@tree.command(name="set_welcome_channel", description="")
-#async def slash_set_welcome_channel(interaction: discord.Interaction):
-#    pass
+
 
 @tree.command(name="ping")
 async def ping(interaction: discord.Interaction):
@@ -1102,6 +1087,190 @@ async def send_server(interaction: discord.Interaction, text: str,
 
 tree.add_command(send_group)
 
+@tree.command(name="set_welcome_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def send_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error_interaction(interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET welcome_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error_interaction(interaction,"Hiba a üdvözlő csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
+@tree.command(name="set_farewell_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def send_farewell_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error_interaction(interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET farewell_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error_interaction(interaction,"Hiba a távózó csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
+@tree.command(name="set_youtube_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def send_youtube_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error_interaction(interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET youtube_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error_interaction(interaction,"Hiba a youtube csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
+@tree.command(name="set_level_up_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def send_level_up_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error_interaction(interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET level_up_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error_interaction(interaction,"Hiba a szintlépő csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
+@tree.command(name="set_level_system_enabled")
+@app_commands.describe(enabled="endedélyezed aszint rendszert?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def send_level_system_enabled(interaction: discord.Interaction, enabled: bool):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error_interaction(interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET level_system_enabled = %s WHERE id = %s',
+                (int(enabled), interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error_interaction(interaction,"Hiba történt a szintrendszer engedélyének beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani.",
+        ephemeral=True
+    )
 
 
 # Help message constant
@@ -1140,12 +1309,8 @@ HELP_MESSAGE_NSFW = """
 async def slash_help(interaction: discord.Interaction):
     try:
         if not interaction.channel.is_nsfw() and not isinstance(interaction.channel, discord.DMChannel):
-            if test:
-                print(HELP_MESSAGE)
             await interaction.response.send_message(HELP_MESSAGE)
         else:
-            if test:
-                print(HELP_MESSAGE_NSFW)
             await interaction.response.send_message(HELP_MESSAGE + HELP_MESSAGE_NSFW)
     except discord.HTTPException:
         await interaction.response.defer(ephemeral=True)
