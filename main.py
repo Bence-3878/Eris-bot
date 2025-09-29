@@ -14,6 +14,8 @@ from discord import app_commands                    # SLASH parancsok támogatá
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 #####################################################import#############################################################
 
@@ -388,6 +390,57 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 
+
+async def monthly_job():
+    if leveldb is None:
+        pass
+    else:
+        cursor = leveldb.cursor()
+        try:
+            cursor.execute('SELECT id, server_id FROM server_users')
+            result = cursor.fetchall()
+        except mysql.connector.Error as e:
+            pass
+
+        for row in result:
+            id, server_id = row
+            try:
+                cursor.execute('UPDATE server_users SET user_xp_monthly = 0 WHERE id = %s AND server_id = %s',
+                    (id, server_id)
+                )
+            except mysql.connector.Error as e:
+                pass
+
+async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/Budapest")):
+    # Várjuk meg, míg a bot készen áll
+    await client.wait_until_ready()
+    while not client.is_closed():
+        now = datetime.now(tz)
+        # Következő futási idő: a legközelebbi hónap 1-je [hour:minute]
+        year, month = now.year, now.month
+
+        # Ha ma még az adott időpont előtt vagyunk és ma 1-je van, akkor ma fut
+        if now.day == 1 and (now.hour, now.minute) < (hour, minute):
+            target_year, target_month = year, month
+        else:
+            if month == 12:
+                target_year, target_month = year + 1, 1
+            else:
+                target_year, target_month = year, month + 1
+
+        run_at = datetime(target_year, target_month, 1, hour, minute, tzinfo=tz)
+        sleep_seconds = max(1.0, (run_at - now).total_seconds())
+        try:
+            await asyncio.sleep(sleep_seconds)
+            await monthly_job()
+        except asyncio.CancelledError:
+            # Leállításkor kilépünk
+            break
+        except Exception as e:
+            # Ne álljon le a ciklus egy kivétel miatt
+            print(f"[Scheduler] Hiba a havi feladat futtatása közben: {e!r}")
+            # Kis várakozás, hogy ne pörögjön
+            await asyncio.sleep(5)
 
 ##############################################aszinkron függvények######################################################
 
@@ -1395,6 +1448,9 @@ async def on_ready():                               # Akkor fut, amikor a bot si
             print(f"Globális parancsok lekérése sikertelen: {fe}")
     except Exception as e:
         print(f"Slash parancs szinkronizáció hiba: {e}")
+
+    # Havi ütemezett feladat indítása: minden hónap 1-jén 00:00 (Európa/Budapest időzóna)
+    asyncio.create_task(run_monthly_at(hour=0, minute=0, tz=ZoneInfo("Europe/Budapest")))
 
 @client.event                                       # Üzenetekre reagáló eseménykezelő
 async def on_message(message):                      # Minden bejövő üzenetre lefut (DM és szerver)
