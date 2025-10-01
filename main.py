@@ -62,6 +62,19 @@ intents = discord.Intents.default()                 # Alapértelmezett intentek 
 intents.message_content = True                      # Üzenettartalom olvasásának engedélyezése (parancsokhoz szükséges)
 intents.members = True                              # Tag események engedélyezése (pl. belépés)
 
+# Modul-szintű logger, egyszeri konfigurációval (duplikált handlerek elkerülése)
+loggerxp = logging.getLogger(__name__)
+loggerxp.setLevel(logging.INFO)
+if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) and str(h.baseFilename).endswith("xp.log")
+           for h in loggerxp.handlers):
+    _err_handler = logging.FileHandler('xp.log', encoding='utf-8')
+    _err_handler.setLevel(logging.ERROR)
+    _err_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    loggerxp.addHandler(_err_handler)
+intents = discord.Intents.default()                 # Alapértelmezett intentek (engedélyek) létrehozása
+intents.message_content = True                      # Üzenettartalom olvasásának engedélyezése (parancsokhoz szükséges)
+intents.members = True                              # Tag események engedélyezése (pl. belépés)
+
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 sess = requests.Session()
@@ -69,22 +82,38 @@ sess = requests.Session()
 level1 = 500                                        # Kiinduló XP költség az első szinthez
 levelq = 1.05                                       # Szintenkénti növekedési kvóciens (XP igény szorzója)
 levels = [0,level1]
-for i in range(1,100):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
+for i in range(1,1000000):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
     m = levels[i] + n                               # Következő szint össz-XP küszöb (kumulált)
+    if m > (2**31 - 1) * 50:
+        break
     levels.append(m)                                # Hozzáadás a listához
+
+
+print(levels)
+print(len(levels))
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
 error_channel = 1416450862674477206
 
 test = True
+
+UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
+       "OwO", "owo", "OWO", "oWo", "Owo", "owO", "OWo", "oWO",
+       "TwT", "tWT", "tWT", "tWt", "twt", "tWT", "tWt", "tWT",
+       "O_o", "o_o", "O_O", "o_O", "O.o", "o.O", "O.O", "o.o",
+       "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
+       "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
+
+OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 ######################init##########################
 
 
 def gPX(message: discord.Message):                                         # Heurisztikus XP egy üzenetre
     # Képes üzenet detektálása (csatolmányok)
     m = 0
+    n = 0
     if any(
             (a.content_type and a.content_type.startswith('image/')) or
             (a.filename and a.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')))
@@ -93,10 +122,79 @@ def gPX(message: discord.Message):                                         # Heu
         m = random.randint(10, 30)
     if message.content is None:
         return m
-    n = len(message.content) + random.randint(-3, 5)
-    if n > 50:
-        n = 50 + random.randint(-5, 5)
-    return n + m
+    if   len(message.content) <= 50:
+        n = len(message.content) + random.randint(-3, 5)
+    if len(message.content) > 50:
+        n = 50 + random.randint(-5, 5) + int(len(message.content)/10 - 5)
+    if len(message.content) > 100 :
+        n = 100 + random.randint(-20, 20) + int(len(message.content)/10 - 10)
+
+    if any(uwu in message.content.lower() for uwu in UwU):
+        m += random.randint(20, 30)
+
+    d = random.randint(1,100)
+    d2 = 0
+    if d == 1:
+        r = random.randint(-50,10)
+    elif d == 2:
+        r = random.randint(50,100)
+    elif d == 3:
+        r = random.randint(-100,-30)
+    elif d == 4:
+        r = random.randint(-100,100)
+    elif d == 5:
+        r = random.randint(20,40)
+    elif d == 6:
+        r = random.randint(-20,50)
+    elif d == 7:
+        r = random.randint(300,500)
+    elif d == 8:
+        r = -300
+    elif d == 9:
+        r = random.randint(-200,-100)
+    elif 9 < d <= 50:
+        r = random.randint(-10,10)
+    elif d == 100:
+        d2 = random.randint(1,100)
+        if d2 == 1:
+            r = random.randint(-50,100)
+        elif d2 == 2:
+            r = random.randint(50,1000)
+        elif d2 == 3:
+            r = random.randint(-1000,-300)
+        elif d2 == 4:
+            r = random.randint(-1000,1000)
+        elif d2 == 5:
+            r = random.randint(500,990)
+        elif d2 == 6:
+            r = random.randint(-500,-400)
+        elif d2 == 7:
+            r = random.randint(3000,5000)
+        elif d2 == 8:
+            r = -5000
+        elif d2 == 9:
+            r = random.randint(-4000,4000)
+        elif d2 == 10:
+            r = 0
+            for i in range(20):
+                r += random.randint(-100,100)
+        elif d2 == 11:
+            r = random.randint(0,100) + random.randint(-100,0)
+        elif d2 == 12:
+            r = random.randint(-30,30) * random.randint(-30,30)
+        else:
+            r = 500
+    else:
+        r = 0
+    xp = n + m + r
+    log = (
+        "Id: " + str(message.author.id) + " | " + message.author.name + "#" + message.author.discriminator + "\n"
+        "Szerver: " + str(message.guild.id) + " | " + message.guild.name + "\n"
+        "D:" + str(d) +" | D2:" + str(d2) + " | R:" + str(r) + " | N:" + str(n) + " | M:" + str(m) + "\n"
+
+    )
+    loggerxp.info(log)
+    return xp
 
 def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
     if xp < 0:
@@ -135,7 +233,10 @@ async def error_interaction(interaction: discord.Interaction, string: str = "", 
                 error_msg = (
                     f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
                     #f"Parancs: {interaction.command.name}\n"
-                    f"Hiba: {str(e)}\n"
+                    f"Adatbázis hiba: {e.msg}\n"
+                    f"Hibakód: {e.errno}\n"
+                    f"SQL állapot: {e.sqlstate}\n"
+                    f"Részletes hiba: {str(e)}"
                     f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})"
                 )
@@ -180,7 +281,10 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
                 )
             else:
                 error_msg = (
-                    f"Hiba: {str(e)}\n"
+                    f"Adatbázis hiba: {e.msg}\n"
+                    f"Hibakód: {e.errno}\n"
+                    f"SQL állapot: {e.sqlstate}\n"
+                    f"Részletes hiba: {str(e)}"
                     f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
@@ -203,16 +307,56 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
         logger.error(f"DM/csatorna értesítés hiba: {dm_err}", exc_info=dm_err)
     return
 
+async def error_client(string: str = "", e: Exception = None, ):
+    try:
+        admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
+        channel = client.get_channel(error_channel)
+        if channel is None:
+            with contextlib.suppress(Exception):
+                channel = await client.fetch_channel(error_channel)
+
+        if admin_user is not None:
+            guild_name = client.guild.name if client.guild else "DM/Ismeretlen szerver"
+            channel_name = f"#{client.channel.name}" if (getattr(client, "channel", None)
+                                                          and getattr(client.channel, "name",
+                                                                      None)) else "#ismeretlen-csatorna"
+
+            if e is None:
+                error_msg = (
+                    f"Hely: {guild_name} | {channel_name}\n"
+                    f"Küldő: {client.author.mention} (ID: {client.author.id}) (name: {client.author.name})"
+                )
+            else:
+                error_msg = (
+                    f"Adatbázis hiba: {e.msg}\n"
+                    f"Hibakód: {e.errno}\n"
+                    f"SQL állapot: {e.sqlstate}\n"
+                    f"Részletes hiba: {str(e)}"
+                    f"Hely: {guild_name} | {channel_name}\n"    
+                    f"Küldő: {client.author.mention} (ID: {client.author.id}) (name: {client.author.name})"
+                )
+                logger.error(error_msg, exc_info=e)
+
+            if string:
+                error_msg = error_msg + "\nKomment: " + str(string)
+
+            # Discord 2000 karakteres limit
+            if len(error_msg) > 2000:
+                error_msg = error_msg[:1990] + "…"
+
+            # Küldés DM-ben az adminnak
+            with contextlib.suppress(Exception):
+                await admin_user.send(error_msg)
+
+            with contextlib.suppress(Exception):
+                await channel.send(error_msg)
+    except Exception as dm_err:
+        logger.error(f"DM/csatorna értesítés hiba: {dm_err}", exc_info=dm_err)
+    return
+
 
 async def other_messege(message: discord.Message):
-    UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
-           "OwO", "owo", "OWO", "oWo", "Owo", "owO", "OWo", "oWO",
-           "TwT", "tWT", "tWT", "tWt", "twt", "tWT", "tWt", "tWT",
-           "O_o", "o_o", "O_O", "o_O", "O.o", "o.O", "O.O", "o.o",
-           "UwO", "uwo", "UWO", "uWo", "Uwo", "uwO", "uWO", "UWo",
-           "OwU", "owu", "OWU", "oWu", "Owu", "owU", "oWU", "OWu"]
 
-    OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
         if any(uwu in message.content.lower() for uwu in UwU):
@@ -224,7 +368,7 @@ async def other_messege(message: discord.Message):
     # Ne legyen negatív XP
     xp = gPX(message)  # XP becslés az üzenet tartalmából
     if any(uwu in message.content.lower() for uwu in UwU):
-        xp += random.randint(20, 30)
+
         m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
         await message.channel.send(m)
 
