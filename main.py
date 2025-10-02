@@ -119,13 +119,14 @@ def gPX(message: discord.Message):                                         # Heu
     ):
         m = random.randint(10, 30)
     if message.content is None:
-        return m
-    if   len(message.content) <= 50:
+        n = 0
+    elif len(message.content) <= 50:
         n = len(message.content) + random.randint(-3, 5)
-    if len(message.content) > 50:
+    elif len(message.content) > 100:
+        n = 60 + random.randint(-int(len(message.content) / 15), 20) + int(len(message.content) / 20 - 10)
+    elif len(message.content) > 50:
         n = 50 + random.randint(-5, 5) + int(len(message.content)/10 - 5)
-    if len(message.content) > 100 :
-        n = 100 + random.randint(-20, 20) + int(len(message.content)/10 - 10)
+
 
     if any(uwu in message.content.lower() for uwu in UwU):
         m += random.randint(20, 30)
@@ -180,6 +181,30 @@ def gPX(message: discord.Message):                                         # Heu
             r = random.randint(0,100) + random.randint(-100,0)
         elif d2 == 12:
             r = random.randint(-30,30) * random.randint(-30,30)
+        elif d2 == 13:
+            r = int(len(message.content) / 2) * random.randint(-10,10)
+        elif d2 == 14:
+            r = len(message.content) ** 3
+        elif d2 == 15:
+            r = -len(message.content) ** 2
+        elif d2 == 16:
+            r = random.randint(0,2000)
+        elif d2 == 17:
+            r = random.randint(-2000,0)
+        elif d2 == 18:
+            r = len(message.content) * random.randint(-1,1) + random.randint(-100,100)
+        elif d2 == 19:
+            r = 0
+            for i in range(10):
+                r += random.randint(0,200)
+        elif d2 == 20:
+            r = 0
+            for i in range(random.randint(0,200)):
+                r += random.randint(0,10)
+        elif d2 == 21:
+            r = -500
+            for i in range(random.randint(0,10)):
+                r -= random.randint(0,50)
         else:
             r = 500
     else:
@@ -192,6 +217,7 @@ def gPX(message: discord.Message):                                         # Heu
 
     )
     loggerxp.info(log)
+    print(log)
     return xp
 
 def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
@@ -247,9 +273,7 @@ async def error_interaction(interaction: discord.Interaction, string: str = "", 
             if len(error_msg) > 2000:
                 error_msg = error_msg[:1990] + "…"
 
-            # Küldés DM-ben az adminnak
-            with contextlib.suppress(Exception):
-                await admin_user.send(error_msg)
+
 
             with contextlib.suppress(Exception):
                 await channel.send(error_msg)
@@ -295,9 +319,7 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
             if len(error_msg) > 2000:
                 error_msg = error_msg[:1990] + "…"
 
-            # Küldés DM-ben az adminnak
-            with contextlib.suppress(Exception):
-                await admin_user.send(error_msg)
+
 
             with contextlib.suppress(Exception):
                 await channel.send(error_msg)
@@ -342,9 +364,7 @@ async def error_client(string: str = "", e: Exception = None, ):
             if len(error_msg) > 2000:
                 error_msg = error_msg[:1990] + "…"
 
-            # Küldés DM-ben az adminnak
-            with contextlib.suppress(Exception):
-                await admin_user.send(error_msg)
+
 
             with contextlib.suppress(Exception):
                 await channel.send(error_msg)
@@ -377,7 +397,7 @@ async def other_messege(message: discord.Message):
 
             # Meglévő adatok lekérdezése
             cursor.execute(
-                'SELECT user_xp, level FROM server_users WHERE user_id = %s AND server_id = 0',
+                'SELECT user_xp_text, level_text, user_xp_text_monthly FROM server_users WHERE user_id = %s AND server_id = 0',
                 (message.author.id,)
             )
             row = cursor.fetchone()  # Eredmény beolvasása
@@ -389,8 +409,8 @@ async def other_messege(message: discord.Message):
         if row is None:  # Ha új felhasználó ezen a szerveren
             try:  # Beszúrás próbálkozás
                 cursor.execute(
-                    'INSERT INTO server_users (user_id, server_id, user_xp, level) VALUES (%s, 0, %s, 0)',
-                    (message.author.id, xp)
+                    'INSERT INTO server_users (user_id, server_id, user_xp_text, user_xp_text_monthly, level_text) VALUES (%s, 0, %s, %s, 0)',
+                    (message.author.id, xp, xp)
                 )
                 leveldb.commit()  # Tranzakció véglegesítése
             except mysql.connector.Error as e:  # DB hiba esetén
@@ -400,14 +420,15 @@ async def other_messege(message: discord.Message):
 
         else:  # Ha már létezik rekord
             current_xp = row[0] + xp  # Új összesített XP kiszámítása
+            current_xp_monthly = row[2] + xp  # Új összesített XP kiszámítása
             if current_xp < 0:
                 current_xp = 0
             new_level = level(current_xp)  # Új szint meghatározása
             try:  # Frissítés és szintlépés kezelése
                 # Felhasználó rekordjának frissítése
                 cursor.execute(
-                    'UPDATE server_users SET user_xp = %s, level = %s WHERE user_id = %s AND server_id = 0',
-                    (current_xp, new_level, message.author.id)
+                    'UPDATE server_users SET user_xp_text = %s, level_text = %s WHERE user_id = %s AND server_id = 0',
+                    (current_xp, current_xp_monthly, new_level, message.author.id)
                 )
                 leveldb.commit()  # Tranzakció véglegesítése
 
@@ -435,7 +456,7 @@ async def other_messege(message: discord.Message):
         async def update_server_user(message, xp, cursor, level_up_ch, level_sys):
             try:
                 cursor.execute(
-                    'SELECT user_xp_text, level_text FROM server_users WHERE user_id = %s AND server_id = %s',
+                    'SELECT user_xp_text, level_text, user_xp_text_monthly FROM server_users WHERE user_id = %s AND server_id = %s',
                     (message.author.id, message.guild.id)
                 )
                 row = cursor.fetchone()
@@ -451,8 +472,8 @@ async def other_messege(message: discord.Message):
         async def insert_new_user(message, xp, cursor):
             try:
                 cursor.execute(
-                    'INSERT INTO server_users (user_id, server_id, user_xp_text) VALUES (%s, %s, %s)',
-                    (message.author.id, message.guild.id, xp)
+                    'INSERT INTO server_users (user_id, server_id, user_xp_text, user_xp_text_monthly) VALUES (%s, %s, %s, %s)',
+                    (message.author.id, message.guild.id, xp, xp)
                 )
                 leveldb.commit()
             except mysql.connector.Error as e:
@@ -461,14 +482,15 @@ async def other_messege(message: discord.Message):
 
         async def update_existing_user(message, xp, row, cursor, level_up_ch, level_sys):
             current_xp = row[0] + xp
+            current_xp_monthly = row[2] + xp
             if current_xp < 0:
                 current_xp = 0
             new_level = level(current_xp)
 
             try:
                 cursor.execute(
-                    'UPDATE server_users SET user_xp = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
-                    (current_xp, new_level, message.author.id, message.guild.id)
+                    'UPDATE server_users SET user_xp_text = %s, user_xp_text_monthly = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
+                    (current_xp, current_xp_monthly, new_level, message.author.id, message.guild.id)
                 )
                 leveldb.commit()
 
@@ -721,7 +743,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            'SELECT user_xp_text FROM server_users WHERE user_id = %s AND server_id = %s',
             (target.id, interaction.guild.id)
         )
         result = cursor.fetchone()
@@ -771,11 +793,11 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
     if amount <= 0:
         await interaction.response.send_message('Az amount legyen pozitív egész.', ephemeral=True)
         return
-
+    await interaction.response.defer(ephemeral=True)
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
         row = cursor.fetchone()
@@ -784,17 +806,16 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_xp = amount
             new_level = level(new_xp)
             cursor.execute(
-                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, level_text) VALUES (%s, %s, %s, %s)',
                 (user.id, interaction.guild.id, new_xp, new_level)
             )
         else:
-            current_xp = int(row[0])
-            new_xp = current_xp + amount
-            new_level = level(new_xp)
+
             cursor.execute(
-                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-                (new_xp, new_level, user.id, interaction.guild.id)
+                'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
+                (int(row[1]) + amount, level(int(row[0]) + int(row[1]) + amount), user.id, interaction.guild.id)
             )
+            new_xp = int(row[0]) + int(row[1]) + amount
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
@@ -1257,7 +1278,7 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
 #
 #    try:
 #        cursor.execute(
-#                'UPDATE servers SET level_sys = %s WHERE id = %s',
+#                'UPDATE servers SET level_system_enabled = %s WHERE id = %s',
 #                (int(enabled), interaction.guild.id)
 #            )
 #        leveldb.commit()
@@ -1277,32 +1298,9 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
 #        ephemeral=True
 #    )
 #
-#    cursor = leveldb.cursor()
-#
-#    try:
-#        cursor.execute(
-#            'UPDATE servers SET welcome_ch = %s WHERE id = %s',
-#            (, interaction.guild.id)
-#        )
-#        leveldb.commit()
-#    except Exception as e:
-#        leveldb.rollback()
-#        await error_interaction(interaction, "Hiba a üdvözlő csatorna beállítása során", e)
-#        await interaction.response.send_message(
-#            f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
-#            ephemeral=True
-#        )
-#        return
-#    finally:
-#        cursor.close()
-#
-#    await interaction.response.send_message(
-#        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
-#        ephemeral=True
-#    )
 #
 #
-#
+
 
 send_group = app_commands.Group(name="send", description="üzenet")
 
