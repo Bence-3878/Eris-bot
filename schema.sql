@@ -1,7 +1,7 @@
 CREATE
-DATABASE IF NOT EXISTS `discord_bot`;
+DATABASE IF NOT EXISTS `discord_bot1`;
 
-USE `discord_bot`;
+USE `discord_bot1`;
 
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `server_levels`;
@@ -17,8 +17,10 @@ CREATE TABLE `servers` (
     `goodbye_ch` BIGINT UNSIGNED DEFAULT NULL,
     `goodbye_msg` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `youtube_ch` BIGINT UNSIGNED DEFAULT NULL,
+    `youtube_msg` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `level_up_ch` BIGINT UNSIGNED DEFAULT NULL,
-    `level_system_enabled` ENUM('enabled','disabled','monthly') DEFAULT 0,
+    `level_system_enabled` ENUM('enabled','disabled','monthly') DEFAULT 'disabled',
+    `level_up_msg` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `valami1` BIGINT UNSIGNED DEFAULT NULL,
     `valami2` BIGINT UNSIGNED DEFAULT NULL,
     `valami3` BIGINT UNSIGNED DEFAULT NULL,
@@ -37,7 +39,7 @@ CREATE TABLE `users` (
     `valami4` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `valami5` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `valami6` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    PRIMARY KEY (`id`)addles
+    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `server_users` (
@@ -61,7 +63,7 @@ CREATE TABLE `server_users` (
     PRIMARY KEY (`user_id`,`server_id`),
     KEY `fk_server_id` (`server_id`),
     KEY `fk_user_id` (`user_id`),
-    CONSTRAINT `fk_server_id` FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`)
+    CONSTRAINT `fk_server_id` FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`),
     CONSTRAINT `fk_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
