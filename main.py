@@ -127,12 +127,11 @@ def gPX(message: discord.Message):                                         # Heu
     elif len(message.content) > 50:
         n = 50 + random.randint(-5, 5) + int(len(message.content)/10 - 5)
 
-
     if any(uwu in message.content.lower() for uwu in UwU):
         m += random.randint(20, 30)
-
     d = random.randint(1,100)
     d2 = 0
+
     if d == 1:
         r = random.randint(-50,10)
     elif d == 2:
@@ -210,14 +209,13 @@ def gPX(message: discord.Message):                                         # Heu
     else:
         r = 0
     xp = n + m + r
-    log = (
-        "Id: " + str(message.author.id) + " | " + message.author.name + "#" + message.author.discriminator + "\n"
-        "Szerver: " + str(message.guild.id) + " | " + message.guild.name + "\n"
-        "D:" + str(d) +" | D2:" + str(d2) + " | R:" + str(r) + " | N:" + str(n) + " | M:" + str(m) + "\n"
-
-    )
-    loggerxp.info(log)
-    print(log)
+    #log = (
+    #    "Id: " + str(message.author.id) + " | " + message.author.name + "#" + message.author.discriminator + "\n"
+    #    "Szerver: " + str(message.guild.id) + " | " + message.guild.name + "\n"
+    #    "D:" + str(d) +" | D2:" + str(d2) + " | R:" + str(r) + " | N:" + str(n) + " | M:" + str(m) + "\n"
+    #
+    #)
+    #loggerxp.info(log)
     return xp
 
 def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
@@ -375,7 +373,6 @@ async def error_client(string: str = "", e: Exception = None, ):
 
 async def other_messege(message: discord.Message):
 
-
     if leveldb is None:  # Ha nincs DB, nem számolunk XP-t
         if any(uwu in message.content.lower() for uwu in UwU):
             m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
@@ -389,7 +386,6 @@ async def other_messege(message: discord.Message):
 
         m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
         await message.channel.send(m)
-
 
     cursor = leveldb.cursor()
     if message.guild is None:
@@ -427,7 +423,7 @@ async def other_messege(message: discord.Message):
             try:  # Frissítés és szintlépés kezelése
                 # Felhasználó rekordjának frissítése
                 cursor.execute(
-                    'UPDATE server_users SET user_xp_text = %s, level_text = %s WHERE user_id = %s AND server_id = 0',
+                    'UPDATE server_users SET user_xp_text = %s, user_xp_text_monthly = %s, level_text = %s WHERE user_id = %s AND server_id = 0',
                     (current_xp, current_xp_monthly, new_level, message.author.id)
                 )
                 leveldb.commit()  # Tranzakció véglegesítése
@@ -793,7 +789,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp_text FROM server_users WHERE user_id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add FROM server_users WHERE user_id = %s AND server_id = %s',
             (target.id, interaction.guild.id)
         )
         result = cursor.fetchone()
@@ -823,10 +819,10 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         )
         return
 
-    total_xp = int(result[0])
+    total_xp = int(result[0]) + int(result[1])
 
     await interaction.response.send_message(
-        f'Összes XP: {total_xp}',
+        f'Összes XP: {total_xp} Level: {level(total_xp)}',
         ephemeral=True
     )
 
@@ -847,7 +843,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp_text, user_xp_text_add FROM server_users WHERE user_id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add, user_xp_text_monthly, valami1 FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
         row = cursor.fetchone()
@@ -856,16 +852,22 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_xp = amount
             new_level = level(new_xp)
             cursor.execute(
-                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, level_text) VALUES (%s, %s, %s, %s)',
-                (user.id, interaction.guild.id, new_xp, new_level)
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, valami1, level_text, level_monthly)'
+                ' VALUES (%s, %s, %s, %s, %s, %s)',
+                (user.id, interaction.guild.id, new_xp, new_xp, new_level, new_level)
             )
         else:
-
+            valami1 = row[3] if row[3] is not None else 0
+            new_xp = int(row[1]) + amount
+            new_xp_monthly = int(valami1) + amount
+            new_level = level(int(row[0]) + int(row[1]) + amount)
+            new_level_monthly = level(int(row[2]) + int(valami1) + amount)
             cursor.execute(
-                'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
-                (int(row[1]) + amount, level(int(row[0]) + int(row[1]) + amount), user.id, interaction.guild.id)
+                'UPDATE server_users SET user_xp_text_add = %s, valami1 = %s, level_text = %s, level_monthly = %s '
+                'WHERE user_id = %s AND server_id = %s',
+                (new_xp, new_xp_monthly, new_level,new_level_monthly, user.id, interaction.guild.id)
             )
-            new_xp = int(row[0]) + int(row[1]) + amount
+            new_xp += int(row[0])
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
@@ -879,7 +881,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
     finally:
         cursor.close()
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
     )
 
@@ -900,7 +902,7 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp FROM server_users WHERE id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
         row = cursor.fetchone()
@@ -908,33 +910,15 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
             await interaction.response.send_message('Nincs adat ehhez a felhasználóhoz ezen a szerveren.', ephemeral=True)
             return
 
-        current_xp = int(row[0])
-        new_xp = max(0, current_xp - amount)
-        new_level = level(new_xp)
         cursor.execute(
-            'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-            (new_xp, new_level, user.id, interaction.guild.id)
+            'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
+            (int(row[1]) - amount, level(int(row[0]) + int(row[1]) - amount), user.id, interaction.guild.id)
         )
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
         await interaction.response.defer(ephemeral=True)
-        await error_interaction(interaction, e)
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user is not None:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
-                                                                  and getattr(interaction.channel, "name",
-                                                                              None)) else "#ismeretlen-csatorna"
-                await admin_user.send(
-                    f"Parancs: {interaction.command.name}\n"
-                    f"Váratlan hiba történt: {str(e)}"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+        await error_interaction(interaction,"Hiba az xp hozzá adásánál", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -944,7 +928,7 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
         cursor.close()
 
     await interaction.response.send_message(
-        f'{user.mention} új XP-je: {new_xp} (szint: {new_level})', ephemeral=True
+        f'{user.mention} új XP-je: {(row[0] + row[1] - amount)} (szint: {level(row[0] + row[1] - amount)})', ephemeral=True
     )
 
 @xp_group.command(name="set", description="XP közvetlen beállítása (admin).")
@@ -962,29 +946,29 @@ async def xp_set(interaction: discord.Interaction, user: discord.Member, amount:
         await interaction.response.send_message('Az amount nem lehet negatív.', ephemeral=True)
         return
 
-    new_xp = amount
-    new_level = level(new_xp)
+    await interaction.response.defer(ephemeral=True)
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT 1 FROM server_users WHERE id = %s AND server_id = %s',
+            'SELECT user_xp_text FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
-        exists = cursor.fetchone() is not None
-        if exists:
+        row = cursor.fetchone()
+        if row is not None:
             cursor.execute(
-                'UPDATE server_users SET user_xp = %s, level = %s WHERE id = %s AND server_id = %s',
-                (new_xp, new_level, user.id, interaction.guild.id)
+                'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
+                (amount - row[0] , level(amount), user.id, interaction.guild.id)
             )
         else:
             cursor.execute(
-                'INSERT INTO server_users (id, server_id, user_xp, level) VALUES (%s, %s, %s, %s)',
-                (user.id, interaction.guild.id, new_xp, new_level)
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, level_text) VALUES (%s, %s, %s, %s)',
+                (user.id, interaction.guild.id, amount, level(amount))
             )
+        new_xp = amount
+        new_level = level(amount)
         leveldb.commit()
     except Exception as e:
         leveldb.rollback()
-        await interaction.response.defer(ephemeral=True)
         await error_interaction(interaction, e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
@@ -994,7 +978,7 @@ async def xp_set(interaction: discord.Interaction, user: discord.Member, amount:
     finally:
         cursor.close()
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f'{user.mention} XP-je beállítva: {new_xp} (szint: {new_level})', ephemeral=True
     )
 
@@ -1004,8 +988,8 @@ tree.add_command(xp_group)
 
 
 @tree.command(name="top")
-@app_commands.describe(globalis="Globális toplista.")
-async def top_command(interaction: discord.Interaction, globalis: bool = False):
+@app_commands.describe(globalis="Globális toplista.",monthly="Havi lista")
+async def top_command(interaction: discord.Interaction, globalis: bool = False, monthly: bool = False):
     if leveldb is None:  # DB nélkül nem megy
         await error_interaction(interaction, "Az adatbázis nem érhető el.")
         await interaction.response.send_message('Az adatbázis nem érhető el,'
@@ -1016,17 +1000,30 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False):
     cursor = leveldb.cursor()  # Kurzor nyitása
     try:  # Védett DB művelet
         if globalis:
+            if monthly:
+                cursor.execute(
+                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                )
+            else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT id, SUM(user_xp) AS total_xp FROM server_users GROUP BY id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
         else:
+            if monthly:
+                cursor.execute(
+                    'SELECT user_id, user_xp_text_monthly AS total_xp '
+                    'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC LIMIT 10',
+                    (interaction.guild.id,)
+                )
+            else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT id, user_xp FROM server_users WHERE server_id = %s ORDER BY user_xp DESC LIMIT 10',
+                    'SELECT user_id, user_xp_text AS total_xp '
+                    'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC LIMIT 10',
                     (interaction.guild.id,)
                 )
         result = cursor.fetchall()  # Minden sor beolvasása
     except mysql.connector.Error as e:
-        await error_interaction(interaction, f"Adatbázis hiba: {e.msg}", e)
+        await error_interaction(interaction,  e)
 
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
@@ -1072,7 +1069,7 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False):
 
 @tree.command(name="rank", description="Megjeleníti a felhasználó rangját (helyezését) az XP alapján.")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None):
+async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None, globalis: bool = False, monthly: bool = False):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a rang funkció ideiglenesen nem működik.',
@@ -1086,17 +1083,39 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
     cursor = leveldb.cursor()
     try:
         if interaction.guild is None:
-            cursor.execute(
-                'SELECT id, user_xp, level FROM server_users WHERE server_id = 0 ORDER BY user_xp DESC'
-            )
-        else:
+            if globalis:
                 cursor.execute(
-                    'SELECT id, user_xp, level FROM server_users WHERE server_id = %s ORDER BY user_xp DESC',
-                    (interaction.guild.id,)
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                 )
+            else:
+                cursor.execute(
+                    'SELECT user_id, user_xp_text FROM server_users WHERE server_id = 0 ORDER BY user_xp_text DESC'
+                )
+        else:
+            if globalis:
+                if monthly:
+                    cursor.execute(
+                        'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                    )
+                else:
+                    cursor.execute(
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                    )
+            else:
+                if monthly:
+                    cursor.execute(
+                        'SELECT user_id, user_xp_text_monthly AS total_xp '
+                        'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC',
+                        (interaction.guild.id,)
+                    )
+                else:
+                    cursor.execute(
+                    'SELECT user_id, user_xp_text FROM server_users WHERE server_id = %s ORDER BY user_xp_text DESC',
+                    (interaction.guild.id,)
+                    )
         result = cursor.fetchall()
     except Exception as e:
-        error_interaction(interaction,"Hiba a rang lekérése közben" ,e)
+        await error_interaction(interaction,"Hiba a rang lekérése közben" ,e)
         with contextlib.suppress(Exception):
             await interaction.delete_original_response()
         return
@@ -1116,7 +1135,7 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         )
         return
 
-    lvl = int(result[rank-1][2])
+    lvl = level(int(result[rank-1][1]))
     total_xp = int(result[rank-1][1])
     have = total_xp - levels[lvl]
     need = levels[lvl + 1] - levels[lvl]
@@ -1130,71 +1149,6 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         )
     except Exception as e:
         await error_interaction(interaction, "Rank üzenetet nem lehet elküldeni", e)
-
-@tree.command(name="global_rank", description="Megjeleníti a felhasználó rangját (helyezését) az XP alapján.")
-@app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def global_rank_command(interaction: discord.Interaction, user: discord.Member | None = None):
-    if leveldb is None:
-        await interaction.response.send_message(
-            'Az adatbázis nem érhető el, a rang funkció ideiglenesen nem működik.',
-            ephemeral=True
-        )
-        error_interaction(interaction,"Az adatbázis nem érhető el.")
-        return
-    await interaction.response.defer(ephemeral=True)
-
-    target = user or interaction.user
-    cursor = leveldb.cursor()
-    try:
-        # Globális rang: összegezzük az XP-t minden szerverről ugyanahhoz az id-hoz
-        cursor.execute(
-            'SELECT id, SUM(user_xp) AS total_xp '
-            'FROM server_users '
-            'GROUP BY id '
-            'ORDER BY total_xp DESC'
-        )
-        result = cursor.fetchall()
-    except Exception as e:
-        error_interaction(interaction,"Hiba a rang lekérése közben" ,e)
-        with contextlib.suppress(Exception):
-            await interaction.delete_original_response()
-        return
-    finally:
-        cursor.close()
-    rank = 0
-    talalat = False
-    for row in result:
-        rank += 1
-        if row[0] == target.id:
-            talalat = True
-            break
-    if not talalat:
-        await interaction.followup.send(
-            f'{target.mention} még nem rendelkezik globális adatokkal.',
-            ephemeral=True
-        )
-        return
-
-    total_xp = int(result[rank-1][1])
-    lvl = level(total_xp)
-    # Szint progressz
-    if lvl + 1 < len(levels):
-        have = total_xp - levels[lvl]
-        need = levels[lvl + 1] - levels[lvl]
-    else:
-        have = 0
-        need = 0
-
-    m = (f'{target.mention} globális szintje: {lvl}\n'
-        f'Következő szinthez: {have}/{need}\n'
-        f'Összes (globális) XP: {total_xp}         #{rank}')
-    try:
-        await interaction.followup.send(
-            m, ephemeral=False
-        )
-    except Exception as e:
-        await error_interaction(interaction, "Rank üzenetet nem lehet elküldeni", e)
-
 
 
 
@@ -1380,24 +1334,11 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
 
     except Exception as e:
         # Egyéb hibák esetén
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = (f"#{interaction.channel.name}"
-                                if (getattr(interaction, "channel", None) and
-                                    getattr(interaction.channel, "name", None))
-                                else "#ismeretlen-csatorna")
-                await admin_user.send(
-                    f"DM küldési hiba:\n"
-                    f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
+        await error_interaction(
+            interaction, f"DM küldési hiba:\n"
                     f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                    f"Címzett: {user} (ID: {user.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
-
+                    f"Címzett: {user} (ID: {user.id})", e
+        )
         await interaction.followup.send(
             "Váratlan hiba történt az üzenet küldése közben.",
             ephemeral=True
@@ -1429,25 +1370,11 @@ async def send_server(interaction: discord.Interaction, text: str, channel: disc
         )
 
     except Exception as e:
-        # Egyéb hibák esetén
-        try:
-            admin_user = interaction.client.get_user(admin_id) or await interaction.client.fetch_user(admin_id)
-            if admin_user:
-                guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
-                channel_name = (f"#{interaction.channel.name}"
-                                if (getattr(interaction, "channel", None) and
-                                    getattr(interaction.channel, "name", None))
-                                else "#ismeretlen-csatorna")
-                await admin_user.send(
-                    f"Szerver üzenet küldési hiba:\n"
-                    f"Hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                    f"Címzett: {user} (ID: {user.id})\n"
-                    f"Célcsatorna: {channel.name} (ID: {channel.id})"
-                )
-        except Exception as dm_err:
-            print(f"Nem sikerült DM-et küldeni az adminnak: {dm_err}")
+
+        await error_interaction(interaction,f"Szerver üzenet küldési hiba\n"
+                                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                                    f"Címzett: {user} (ID: {user.id})\n"
+                                    f"Célcsatorna: {channel.name} (ID: {channel.id})", e)
 
         await interaction.followup.send(
             "Váratlan hiba történt az üzenet küldése közben.",
@@ -1619,7 +1546,7 @@ async def on_ready():                               # Akkor fut, amikor a bot si
             except Exception as e:
                 pass
         try:
-            cursor.execute('SELECT * FROM servers WHERE id = %s', (0,))
+            cursor.execute('SELECT * FROM servers WHERE id = 0')
             row1 = cursor.fetchone()
 
             if row1 is None:
@@ -1681,8 +1608,8 @@ async def on_guild_join(guild: discord.Guild):      # Akkor fut, amikor a bot eg
         cursor = leveldb.cursor()                   # Kurzor nyitása
         try:                                        # Védett DB művelet
             cursor.execute(                         # Szerver bejegyzés létrehozása inicializáló értékekkel
-                'INSERT INTO servers (id, welcome_ch, level_up_ch, level_sys) VALUES (%s, %s, %s, %s)',
-                (guild.id, None, None, False)
+                'INSERT INTO servers (id) VALUES (%s)',
+                (guild.id,)
             )
             leveldb.commit()                        # Tranzakció véglegesítése
         except mysql.connector.Error as e:
@@ -1768,7 +1695,6 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
             await interaction.response.send_message(str(error), ephemeral=True)
         except discord.InteractionResponded:
             await interaction.followup.send(str(error), ephemeral=True)
-
 
 client.run(token, log_handler=handler, log_level=logging.DEBUG)
                                                 # Bot futtatása a megadott tokennel és naplózási beállításokkal
