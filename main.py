@@ -228,6 +228,8 @@ def level(xp):                                      # XP -> szint átalakítás 
         l = i
     return l
 
+def bug():
+    raise Exception("Bug")
 
 ###############################################egyszerű függvények######################################################
 
@@ -280,35 +282,53 @@ async def error_interaction(interaction: discord.Interaction, string: str = "", 
     return
 
 async def error_messege(message: discord.Message, string: str = "", e: Exception = None, ):
+    print("error_messege")
     try:
         admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
         channel = client.get_channel(error_channel)
         if channel is None:
             with contextlib.suppress(Exception):
                 channel = await client.fetch_channel(error_channel)
-
+        print(f"channel: {channel}")
         if admin_user is not None:
             guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
                                                           and getattr(message.channel, "name",
                                                                       None)) else "#ismeretlen-csatorna"
             channel_mention = getattr(getattr(message, "channel", None), "mention", "#ismeretlen-csatorna")
-
+            print(f"channel_mention: {channel_mention}")
             if e is None:
+                print("e is None")
                 error_msg = (
                     f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
+                logger.error(error_msg)
             else:
+
+                if hasattr(e, "msg"):
+                    e_msg = str(e.msg)
+                else:
+                    e_msg = "ismeretlen hiba"
+                if hasattr(e, "errno"):
+                    e_errno = str(e.errno)
+                else:
+                    e_errno = "ismeretlen hiba"
+                if hasattr(e, "sqlstate"):
+                    e_sqlstate = str(e.sqlstate)
+                else:
+                    e_sqlstate = "ismeretlen hiba"
                 error_msg = (
-                    f"Adatbázis hiba: {e.msg}\n"
-                    f"Hibakód: {e.errno}\n"
-                    f"SQL állapot: {e.sqlstate}\n"
+                    f"Adatbázis hiba: {e_msg}\n"
+                    f"Hibakód: {e_errno}\n"
+                    f"SQL állapot: {e_sqlstate}\n"
                     f"Részletes hiba: {str(e)}\n"
                     f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"    
                     f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})"
                 )
                 logger.error(error_msg, exc_info=e)
+
+            print(error_msg)
 
             if string:
                 error_msg = error_msg + "\nKomment: " + str(string)
@@ -326,46 +346,49 @@ async def error_messege(message: discord.Message, string: str = "", e: Exception
     return
 
 async def error_client(string: str = "", e: Exception = None, ):
+    print("error_client")
     try:
-        admin_user = client.get_user(admin_id) or await client.fetch_user(admin_id)
         channel = client.get_channel(error_channel)
         if channel is None:
             with contextlib.suppress(Exception):
                 channel = await client.fetch_channel(error_channel)
 
-        if admin_user is not None:
-            guild_name = client.guild.name if client.guild else "DM/Ismeretlen szerver"
-            channel_name = f"#{client.channel.name}" if (getattr(client, "channel", None)
-                                                          and getattr(client.channel, "name",
-                                                                      None)) else "#ismeretlen-csatorna"
+        if hasattr(client, "guild"):
+            guild_name = client.guild.name
+        else:
+            guild_name = "DM/Ismeretlen szerver"
 
-            if e is None:
-                error_msg = (
-                    f"Hely: {guild_name} | {channel_name}\n"
-                    f"Küldő: {client.author.mention} (ID: {client.author.id}) (name: {client.author.name})"
-                )
-            else:
-                error_msg = (
-                    f"Adatbázis hiba: {e.msg}\n"
-                    f"Hibakód: {e.errno}\n"
-                    f"SQL állapot: {e.sqlstate}\n"
-                    f"Részletes hiba: {str(e)}\n"
-                    f"Hely: {guild_name} | {channel_name}\n"    
-                    f"Küldő: {client.author.mention} (ID: {client.author.id}) (name: {client.author.name})"
-                )
-                logger.error(error_msg, exc_info=e)
+        if hasattr(client, "channel"):
+            channel_name = f"#{client.channel.name}"
+        else:
+            channel_name = "#ismeretlen-csatorna"
 
-            if string:
-                error_msg = error_msg + "\nKomment: " + str(string)
-
-            # Discord 2000 karakteres limit
-            if len(error_msg) > 2000:
-                error_msg = error_msg[:1990] + "…"
+        error_msg = f"Hely: {guild_name} | {channel_name}\n"
+        if hasattr(client, "author"):
+            error_msg += f"Küldő: {client.author.mention} (ID: {client.author.id}) (name: {client.author.name})\n"
 
 
+        if e is not None:
+            if hasattr(e, "msg"):
+                error_msg += f"Adatbázis hiba: {e.msg}\n"
 
-            with contextlib.suppress(Exception):
-                await channel.send(error_msg)
+            if hasattr(e, "errno"):
+                error_msg += f"Hibakód: {e.errno}\n"
+
+            if hasattr(e, "sqlstate"):
+                error_msg += f"SQL állapot: {e.sqlstate}\n"
+
+        if string:
+            error_msg += "Komment: " + str(string)
+
+        # Discord 2000 karakteres limit
+        if len(error_msg) > 2000:
+            error_msg = error_msg[:1990] + "…"
+
+
+
+        with contextlib.suppress(Exception):
+            await channel.send(error_msg)
     except Exception as dm_err:
         logger.error(f"DM/csatorna értesítés hiba: {dm_err}", exc_info=dm_err)
     return
@@ -386,6 +409,16 @@ async def other_messege(message: discord.Message):
 
         m = OwO[random.randint(0, 6)] + ("!" * random.randint(0, 2))
         await message.channel.send(m)
+
+    try:
+        bug()
+    except Exception as e:
+
+        await error_client("Hiba a botban", e)
+        await error_messege(message, "Hiba a botban", e)
+
+        return
+
 
     cursor = leveldb.cursor()
     if message.guild is None:
@@ -434,11 +467,12 @@ async def other_messege(message: discord.Message):
                     await message.author.send(f"Annyit beszéltél a bottal DM-ben hogy {new_level}. szintű lettél.\n"
                                                   f"Ennél értelmesebb dolgot is lehetne csinálni")
 
-
+                bug()
 
             except Exception as e:
                 leveldb.rollback()  # Visszagörgetés
                 cursor.close()  # Kurzor lezárása
+                await error_client("Hiba XP frissítés közben", e)
                 await error_messege(message, "Hiba XP frissítés közben", e)
                 return
 
@@ -462,8 +496,11 @@ async def other_messege(message: discord.Message):
                 else:
                     await update_existing_user(message, xp, row, cursor, level_up_ch, level_sys)
 
+                bug()
             except mysql.connector.Error as e:
                 await error_messege(message, f'Hiba frissítés közben', e)
+            except Exception as e:
+                await error_interaction(message,e)
 
         async def insert_new_user(message, xp, cursor):
             try:
@@ -548,7 +585,7 @@ async def monthly_job():
     else:
         cursor = leveldb.cursor()
         try:
-            cursor.execute('SELECT id, server_id FROM server_users')
+            cursor.execute('SELECT user_id, server_id FROM server_users')
             result = cursor.fetchall()
         except mysql.connector.Error as e:
             pass
@@ -556,7 +593,7 @@ async def monthly_job():
         for row in result:
             id, server_id = row
             try:
-                cursor.execute('UPDATE server_users SET user_xp_monthly = 0 WHERE id = %s AND server_id = %s',
+                cursor.execute('UPDATE server_users SET user_xp_monthly = 0, valami1 = 0 WHERE user_id = %s AND server_id = %s',
                     (id, server_id)
                 )
             except mysql.connector.Error as e:
@@ -592,6 +629,28 @@ async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/B
             print(f"[Scheduler] Hiba a havi feladat futtatása közben: {e!r}")
             # Kis várakozás, hogy ne pörögjön
             await asyncio.sleep(5)
+
+#async def ifno():
+#    if not os.path.exists("data"):
+#        os.mkdir("data")
+#    if not os.path.exists("data/leveldb"):
+#        os.mkdir("data/leveldb")
+#    if not os.path.exists("data/leveldb/server_users"):
+#        with open("data/leveldb/server_users", "wb") as f:
+#            f.write(b"")
+#    if not os.path.exists("data/leveldb/servers"):
+#        with open("data/leveldb/servers", "wb") as f:
+#            f.write(b"")
+#            print(f"admin_user: {admin_user}")
+#            print(f"admin_user.mention: {admin_user.mention}")
+#            print(f"admin_user.id: {admin_user.id}")
+#            print(f"admin_user.name: {admin_user.name}")
+#            print(f"admin_user.discriminator: {admin_user.discriminator}")
+#            print(f"admin_user.bot: {admin_user.bot}")
+#            print(f"admin_user.avatar: {admin_user.avatar}")
+#            print(f"admin_user.default_avatar: {admin_user.default_avatar}")
+#            print(f"admin_user.public_flags: {admin_user.public_flags}")
+#
 
 ##############################################aszinkron függvények######################################################
 
@@ -793,6 +852,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
             (target.id, interaction.guild.id)
         )
         result = cursor.fetchone()
+        bug()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
         await error_interaction(interaction, f"Adatbázis hiba: {e.msg}", e)
