@@ -1121,6 +1121,8 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         return
     finally:
         cursor.close()
+
+
     rank = 0
     talalat = False
     for row in result:
@@ -1139,13 +1141,41 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
     total_xp = int(result[rank-1][1])
     have = total_xp - levels[lvl]
     need = levels[lvl + 1] - levels[lvl]
+    a = int(have/need * 30)
+    # Példa a progress barra:
+    # 20 szegmensből áll
+    # 0 szint: [--------------------] 0%
 
-    m = (f'{target.mention} szintje: {lvl}\n'
-        f'Következő szinthez: {have}/{need}\n'
-        f'Összes XP: {total_xp}         #{rank}')
+    barra = "█" * a + "░" * (30 - a)
+
+    if globalis:
+        if monthly:
+            title = "globalis havi rangja"
+        else:
+            title = "globalis rangja"
+    else:
+        if monthly:
+            title = "havi rangja"
+        else:
+            title = "rangja"
+
+    embed = discord.Embed(
+        title=f"{target.display_name} {title}",
+        color=discord.Color.green(),
+
+    )
+
+    lvl_name = f"Level: {lvl}"
+    xp_name = f"TOTAL XP: {total_xp:,}"
+    progress_name = f"{barra} {have}/{need} XP"
+    embed.add_field(
+        name=f"Helyezés: #{rank}",
+        value=f'{lvl_name}\n{xp_name}\n{progress_name}',
+        inline=False
+    )
     try:
         await interaction.followup.send(
-            m, ephemeral=False
+            embed=embed, ephemeral=False
         )
     except Exception as e:
         await error_interaction(interaction, "Rank üzenetet nem lehet elküldeni", e)
