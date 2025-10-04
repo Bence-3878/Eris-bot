@@ -597,9 +597,9 @@ async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/B
 
 
 
-@tree.command(name="rule34", nsfw=True)
+@tree.command(name="rule35", nsfw=True)
 @app_commands.describe(ephemeral="Rejtett (ephemeral) választ kérsz?", search="Keresés")
-async def rule34(interaction: discord.Interaction, ephemeral: bool = False, search: str | None = None):
+async def rule35(interaction: discord.Interaction, ephemeral: bool = False, search: str | None = None):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
     if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
             interaction.channel, discord.DMChannel)):
@@ -721,7 +721,79 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
         await error_interaction(interaction, f"Parsing hiba: {parse_err}", parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
 
-                                ###################nsfw###################
+@tree.command(name="rule34", nsfw=True)
+@app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
+async def rule34(interaction: discord.Interaction, search: str | None = None, ephemeral: bool = False):
+    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
+    if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
+            interaction.channel, discord.DMChannel)):
+        await interaction.response.send_message(
+            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
+        return
+
+    # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
+    await interaction.response.defer(ephemeral=ephemeral)
+
+    # Kérés futtatása külön szálon, fejlécekkel
+    def _fetch():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+        r2 = sess.post(
+            "https://rule34.xxx/index.php?page=search",
+            data={"tags": f"{search}", "commit": "Search"},
+            headers=headers,
+            timeout=15,
+        )
+        return r1.status_code, r2.status_code, r2.text
+    if search is None:
+        pass
+    else:
+        try:
+            loop = asyncio.get_running_loop()
+            _, status_code, html = await loop.run_in_executor(None, _fetch)
+
+        except Exception as e:
+            # Hiba esetén értesítsük az admint és csendben térjünk vissza
+            await error_interaction(interaction, "Az API nem elérhető.", e)
+
+            # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+            with contextlib.suppress(Exception):
+                await interaction.delete_original_response()
+            return
+
+        if status_code != 200:
+            # Admin értesítése, majd rövid hibaüzenet
+            await error_interaction(interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+            await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+            return
+
+            # HTML feldolgozása – keressünk néhány találati linket
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            thumbnails = soup.find_all('span', class_='thumb')
+
+            image_links = [thumb.find('a')['href'] for thumb in thumbnails if thumb.find('a')]
+
+            if not image_links:
+                await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+                return
+
+            # Random kép kiválasztása és küldése
+            image_url = random.choice(image_links)
+
+
+        except Exception as parse_err:
+            await error_interaction(interaction, f"Parsing hiba: {parse_err}", parse_err)
+            await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+
+    r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+
+
 
 @tree.command(name="nsfw", nsfw=True)
 async def nsfw(interaction: discord.Interaction):
@@ -767,6 +839,8 @@ async def nsfw(interaction: discord.Interaction):
     except Exception as e:
         await interaction.followup.send(f"Hiba történt: {str(e)}", ephemeral=True)
 
+
+                                ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
