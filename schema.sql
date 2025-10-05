@@ -21,6 +21,7 @@ CREATE TABLE `servers` (
     `level_up_ch` BIGINT UNSIGNED DEFAULT NULL,
     `level_system_enabled` ENUM('enabled','disabled','monthly') DEFAULT 'disabled',
     `level_up_msg` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `update_ch` BIGINT UNSIGNED DEFAULT NULL,`
     `valami1` BIGINT UNSIGNED DEFAULT NULL,
     `valami2` BIGINT UNSIGNED DEFAULT NULL,
     `valami3` BIGINT UNSIGNED DEFAULT NULL,
@@ -33,6 +34,19 @@ CREATE TABLE `servers` (
 CREATE TABLE `users` (
     `id` BIGINT UNSIGNED NOT NULL,
     `mal_profile` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `mal_username` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `xp_text` int NOT NULL DEFAULT 0,
+    `xp_voice` int NOT NULL DEFAULT 0,
+    `level_text` tinyint UNSIGNED NOT NULL DEFAULT 0,
+    `level_voice` tinyint UNSIGNED NOT NULL DEFAULT 0,
+    `level_monthly` tinyint UNSIGNED NOT NULL DEFAULT 0,
+    `level_sys_number` int DEFAULT 0,
+    `level_sys_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `level_system_enabled` ENUM('enabled','disabled','monthly') DEFAULT 'disabled',
+    `monthly` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+    `monthly_xp_text` int NOT NULL DEFAULT 0,
+    `monthly_xp_voice` int NOT NULL DEFAULT 0,
+    `monthly_level_text` tinyint UNSIGNED NOT NULL DEFAULT 0,`
     `valami1` BIGINT UNSIGNED DEFAULT NULL,
     `valami2` BIGINT UNSIGNED DEFAULT NULL,
     `valami3` BIGINT UNSIGNED DEFAULT NULL,
@@ -56,8 +70,8 @@ CREATE TABLE `server_users` (
     `level_monthly` tinyint UNSIGNED NOT NULL DEFAULT 0,
     `level_sys_number` int DEFAULT 0,
     `valami1` BIGINT UNSIGNED DEFAULT NULL, #user_xp_text_monthly_add
-    `valami2` BIGINT UNSIGNED DEFAULT NULL,
-    `valami3` BIGINT UNSIGNED DEFAULT NULL,
+    `valami2` BIGINT UNSIGNED DEFAULT 0,
+    `valami3` BIGINT UNSIGNED DEFAULT 0,
     `valami4` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `valami5` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `valami6` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

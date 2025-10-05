@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from pickle import FALSE, GLOBAL
 
 import discord                                      # Discord bot kliens
@@ -106,6 +107,12 @@ UwU = ["UwU", "uwu", "UWU", "uWu", "Uwu", "uwU", "uWU", "UWu",
 
 OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 ######################init##########################
+
+def restart():
+    os.system("nohup python3 main.py &")
+    exit(1)
+    os.execv(sys.executable, ['python'] + sys.argv)
+
 
 
 def gPX(message: discord.Message):                                         # Heurisztikus XP egy üzenetre
@@ -470,8 +477,7 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 async def monthly_job():
     if leveldb is None:
         await error(None,None,"A dataprogram nem fut.")
-        os.system("nohup python3 main.py &")
-        exit(1)
+        restart()
     else:
         cursor = leveldb.cursor()
         result = 0
@@ -952,23 +958,23 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
         if globalis:
             if monthly:
                 cursor.execute(
-                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
             else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
         else:
             if monthly:
                 cursor.execute(
-                    'SELECT user_id, user_xp_text_monthly AS total_xp '
-                    'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC LIMIT 10',
+                    'SELECT user_id, user_xp_text_monthly AS total_xp, 0 AS total_xp_add ' #user_xp_text_monthly_add AS total_xp_add  '
+                    'FROM server_users WHERE server_id = %s ORDER BY (total_xp + total_xp_add) DESC LIMIT 10',
                     (interaction.guild.id,)
                 )
             else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT user_id, user_xp_text AS total_xp '
-                    'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC LIMIT 10',
+                    'SELECT user_id, user_xp_text AS total_xp, user_xp_text_add AS total_xp_add '
+                    'FROM server_users WHERE server_id = %s ORDER BY (total_xp + total_xp_add) DESC LIMIT 10',
                     (interaction.guild.id,)
                 )
         result = cursor.fetchall()  # Minden sor beolvasása
@@ -1000,7 +1006,7 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
     rank = 1
     for row in result:
         user_id = row[0]
-        xp = row[1]
+        xp = row[1] + row[2]
         try:
             user = interaction.guild.get_member(user_id) or await interaction.guild.fetch_member(user_id)
             user_name = user.mention if user else f"<@{user_id}>"
@@ -1035,32 +1041,33 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         if interaction.guild is None:
             if globalis:
                 cursor.execute(
-                        'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                 )
             else:
                 cursor.execute(
-                    'SELECT user_id, user_xp_text FROM server_users WHERE server_id = 0 ORDER BY user_xp_text DESC'
+                    'SELECT user_id, user_xp_text, 0 FROM server_users WHERE server_id = 0 ORDER BY user_xp_text DESC'
                 )
         else:
             if globalis:
                 if monthly:
                     cursor.execute(
-                        'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                        'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                     )
                 else:
                     cursor.execute(
-                        'SELECT user_id, SUM(user_xp_text) AS total_xp FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                     )
             else:
                 if monthly:
                     cursor.execute(
-                        'SELECT user_id, user_xp_text_monthly AS total_xp '
-                        'FROM server_users WHERE server_id = %s ORDER BY total_xp DESC',
+                        'SELECT user_id, user_xp_text_monthly, 0 '
+                        'FROM server_users WHERE server_id = %s ORDER BY user_xp_text_monthly DESC',
                         (interaction.guild.id,)
                     )
                 else:
                     cursor.execute(
-                    'SELECT user_id, user_xp_text FROM server_users WHERE server_id = %s ORDER BY user_xp_text DESC',
+                    'SELECT user_id, user_xp_text, user_xp_text_add FROM server_users '
+                    'WHERE server_id = %s ORDER BY (user_xp_text + user_xp_text_add) DESC',
                     (interaction.guild.id,)
                     )
         result = cursor.fetchall()
@@ -1087,16 +1094,16 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         )
         return
 
-    lvl = level(int(result[rank-1][1]))
-    total_xp = int(result[rank-1][1])
+    total_xp = int(result[rank-1][1]) + int(result[rank-1][2])
+    lvl = level(total_xp)
     have = total_xp - levels[lvl]
     need = levels[lvl + 1] - levels[lvl]
-    a = int(have/need * 30)
+    a = int(have/need * 25)
     # Példa a progress barra:
     # 20 szegmensből áll
     # 0 szint: [--------------------] 0%
 
-    barra = "█" * a + "░" * (30 - a)
+    barra = "█" * a + "░" * (25 - a)
 
     if globalis:
         if monthly:
@@ -1415,6 +1422,8 @@ async def slash_help(interaction: discord.Interaction):
 
                                    ###################????###################
 
+##################################################SLASH függvények######################################################
+
 @tree.command(name="sql")
 @app_commands.check(admin_check)
 @app_commands.describe(text="hivás")
@@ -1464,7 +1473,7 @@ async def poweroff(interaction: discord.Interaction):
 
 
     await client.close()  # Discord kapcsolat tiszta lezárása
-    os.system("poweroff")
+    exit(0)
 
 @tree.command(name="reboot")
 @app_commands.check(admin_check)
@@ -1477,7 +1486,7 @@ async def reboot(interaction: discord.Interaction):
 
 
     await client.close()  # Discord kapcsolat tiszta lezárása
-    os.system("reboot")
+    restart()
 
 @tree.command(name="update")
 @app_commands.check(admin_check)
@@ -1489,11 +1498,10 @@ async def update(interaction: discord.Interaction):
         leveldb.close()  # Adatbázis kapcsolat lezárása
     await client.close()  # Discord kapcsolat tiszta lezárása
     print(os.system("git pull"))
-    os.system("nohup python3 main.py &")
-    exit(1)
+    restart()
 
 
-##################################################SLASH függvények######################################################
+
 
 @client.event                                       # Eseménykezelő regisztrálása a klienshez
 async def on_ready():                               # Akkor fut, amikor a bot sikeresen csatlakozott és készen áll
@@ -1547,7 +1555,11 @@ async def on_ready():                               # Akkor fut, amikor a bot si
                     (u.id,))
                     leveldb.commit()
             except Exception as e:
-                error(None,None,"Szerver adatbázis ellenőrzési hiba",e)
+                await error(None,None,"Szerver adatbázis ellenőrzési hiba",e)
+                leveldb.rollback()
+                restart()
+
+
             finally:
                 cursor.close()
 
@@ -1592,11 +1604,12 @@ async def on_guild_join(guild: discord.Guild):      # Akkor fut, amikor a bot eg
         cursor = leveldb.cursor()                   # Kurzor nyitása
         try:                                        # Védett DB művelet
             cursor.execute(                         # Szerver bejegyzés létrehozása inicializáló értékekkel
-                'INSERT INTO servers (id) VALUES (%s)',
-                (guild.id,)
+                'INSERT INTO servers (id, update_ch) VALUES (%s, %s)',
+                (guild.id,channel.id)
             )
             leveldb.commit()                        # Tranzakció véglegesítése
         except mysql.connector.Error as e:
+            await error(None,None,"Hiba az új szerverbebevitelben",e)
             try:
                 admin_user = guild.get_user(admin_id) or await guild.client.fetch_user(admin_id)
                 if admin_user is not None:
@@ -1644,6 +1657,15 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
         row = cursor.fetchone()
         if row and row[0]:
             channel = client.get_channel(int(row[0]))
+        cursor.execute(
+            'SELECT 1 FROM users WHERE id = %s',
+            (member.id,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            cursor.execute(
+                'INSERT INTO users (id) VALUES (%s)',
+            )
     except Exception as e:
         cursor.close()
         await error(None,None,"Hiba az új felhasználó hozzáadásánál",e)
@@ -1655,7 +1677,20 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
 
 @client.event
 async def on_member_remove(member):
-    pass
+    if leveldb is None:
+        return
+    cursor = leveldb.cursor()
+    try:
+        cursor.execute('SELECT goodbye_ch FROM servers WHERE id = %s', (member.guild.id,))
+        row = cursor.fetchone()
+        if row and row[0]:
+            channel = client.get_channel(int(row[0]))
+            if channel is not None:
+                await channel.send(f"{member.mention} elhagyta a szervert. Viszlát!")
+    except Exception as e:
+        await error(None,None,"Hiba a felhasználó eltávolításakor",e)
+    finally:
+        cursor.close()
 
 
 # Globális hiba-kezelő a dekorátorok CheckFailure üzeneteihez
