@@ -1500,7 +1500,7 @@ async def update(interaction: discord.Interaction):
     print(os.system("git pull"))
     restart()
 
-
+##################################################    Parancsok   ######################################################
 
 
 @client.event                                       # Eseménykezelő regisztrálása a klienshez
