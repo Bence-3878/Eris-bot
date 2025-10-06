@@ -2,8 +2,8 @@
 # 1.4.0
 
 import asyncio
-import sys
-from pickle import FALSE, GLOBAL
+# import sys
+# from pickle import FALSE, GLOBAL
 
 import discord                                      # Discord bot kliens
 # from discord.ext import commands
@@ -18,7 +18,7 @@ from discord import app_commands                    # SLASH parancsok támogatá
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime #, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 #####################################################import#############################################################
@@ -81,6 +81,9 @@ for i in range(1,1000000):                              # 1-től 99-ig generálu
     levels.append(m)                                # Hozzáadás a listához
 
 
+#######################init##########################
+
+
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
@@ -101,7 +104,7 @@ OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 def restart():
     os.system("nohup python3 main.py &")
     exit(1)
-    os.execv(sys.executable, ['python'] + sys.argv)
+    # os.execv(sys.executable, ['python'] + sys.argv)
 
 
 
@@ -549,7 +552,7 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
     if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
             interaction.channel, discord.DMChannel)):
-        await interaction.response.send_message(
+        await interaction.response.send_message(interaction,
             "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
         return
 
@@ -590,7 +593,7 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
 
     except Exception as e:
         # Hiba esetén értesítsük az admint és csendben térjünk vissza
-        await error(interaction, "Az API nem elérhető.", e)
+        await error(None,interaction, "Az API nem elérhető.", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -600,7 +603,7 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
 
     if status_code != 200:
         # Admin értesítése, majd rövid hibaüzenet
-        await error(interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+        await error(None,interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
         await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
         return
 
@@ -664,8 +667,11 @@ async def rule34(interaction: discord.Interaction, ephemeral: bool = False, sear
 
 
     except Exception as parse_err:
-        await error(interaction, f"Parsing hiba: {parse_err}", parse_err)
+        await error(None,interaction, f"Parsing hiba: {parse_err}", parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
 
                                 ###################nsfw###################
 
@@ -725,7 +731,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
             ephemeral=True
         )
-        await error(interaction, None,"Az adatbázis nem érhető el.")
+        await error(None,interaction, None,"Az adatbázis nem érhető el.")
         return
     if interaction.guild is None:
         await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
@@ -741,7 +747,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         result = cursor.fetchone()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        await error(interaction, None,f"Adatbázis hiba: {e.msg}", e)
+        await error(None,interaction, None,f"Adatbázis hiba: {e.msg}", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -1370,12 +1376,12 @@ tree.add_command(send_group)
 
 # Help message constant
 HELP_MESSAGE = """**Bot Parancsok**
-\*Alap parancsok:\*
+*Alap parancsok:*
 • `/help` – Ezt a súgót jeleníti meg
 • `/ping` – Bot késleltetés mutatása
 • `/test <üzenet>` – Random teszt funkció
 
-\*XP parancsok:\*
+*XP parancsok:*
 • `/xp show [felhasználó]` – XP és szint lekérdezése
 • `/xp add <felhasználó> <mennyiség>` – XP hozzáadása (admin)
 • `/xp remove <felhasználó> <mennyiség>` – XP levonása (admin)
@@ -1383,15 +1389,15 @@ HELP_MESSAGE = """**Bot Parancsok**
 • `/top` – Toplista megjelenítése
 • `/rank [felhasználó]` – Rang megjelenítése XP alapján
 
-\*Üzenet parancsok:\*
+*Üzenet parancsok:*
 • `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
 • `/send server <üzenet> <csatorna> [felhasználó]` – Üzenet küldése szerver csatornába
 
-\*Csatorna beállítás parancsok:\*
+*Csatorna beállítás parancsok:*
 • `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
 • `/set_level_up_channel <csatorna>` – Szintlépő csatorna beállítása (admin)
 
-\*FŐADMIN parancsok:\*
+*FŐADMIN parancsok:*
 • `/poweroff` – Bot leállítás (bot admin)
 • `/reboot` – Bot újraindítás (bot admin)
 • `/update` – Bot frissítés (bot admin)
