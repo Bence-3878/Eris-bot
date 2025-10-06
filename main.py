@@ -86,7 +86,7 @@ levels = [0,level1]
 for i in range(1,1000000):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
     m = levels[i] + n                               # Következő szint össz-XP küszöb (kumulált)
-    if m > (2**31 - 1) * 5:
+    if m > (2**31 - 1) * 4:
         break
     levels.append(m)                                # Hozzáadás a listához
 
