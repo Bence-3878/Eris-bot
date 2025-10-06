@@ -1,7 +1,7 @@
 CREATE
-DATABASE IF NOT EXISTS `discord_bot1`;
+DATABASE IF NOT EXISTS `discord_bot2`;
 
-USE `discord_bot1`;
+USE `discord_bot2`;
 
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `server_levels`;
@@ -21,8 +21,8 @@ CREATE TABLE `servers` (
     `level_up_ch` BIGINT UNSIGNED DEFAULT NULL,
     `level_system_enabled` ENUM('enabled','disabled','monthly') DEFAULT 'disabled',
     `level_up_msg` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    `update_ch` BIGINT UNSIGNED DEFAULT NULL,`
-    `valami1` BIGINT UNSIGNED DEFAULT NULL,
+    `update_ch` BIGINT UNSIGNED DEFAULT NULL,
+    `valami1` BIGINT UNSIGNED DEFAULT 0,
     `valami2` BIGINT UNSIGNED DEFAULT NULL,
     `valami3` BIGINT UNSIGNED DEFAULT NULL,
     `valami4` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE `users` (
     `monthly` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
     `monthly_xp_text` int NOT NULL DEFAULT 0,
     `monthly_xp_voice` int NOT NULL DEFAULT 0,
-    `monthly_level_text` tinyint UNSIGNED NOT NULL DEFAULT 0,`
+    `monthly_level_text` tinyint UNSIGNED NOT NULL DEFAULT 0,
     `valami1` BIGINT UNSIGNED DEFAULT NULL,
     `valami2` BIGINT UNSIGNED DEFAULT NULL,
     `valami3` BIGINT UNSIGNED DEFAULT NULL,
