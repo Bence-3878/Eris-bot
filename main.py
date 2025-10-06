@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# 1.4.0
+
 import asyncio
 import sys
 from pickle import FALSE, GLOBAL
@@ -1045,28 +1048,31 @@ tree.add_command(send_group)
 
 # Help message constant
 HELP_MESSAGE = """**Bot Parancsok**
-*Alap parancsok:*
-• `/help` - Ezt a súgót jeleníti meg
-• `/level [felhasználó]` - Megmutatja a szinted és XP-d (vagy másét)
-• `/global_level [felhasználó]` - Teljes XP állapot lekérdezése
-• `/test <üzenet>` - Random teszt funkció 
-• `/ping` - Bot késleltetés mutatása
+\*Alap parancsok:\*
+• `/help` – Ezt a súgót jeleníti meg
+• `/ping` – Bot késleltetés mutatása
+• `/test <üzenet>` – Random teszt funkció
 
-*XP parancsok:*
-• `/xp show [felhasználó]` - XP állapot lekérdezése 
-• `/xp add <felhasználó> <mennyiség>` - XP hozzáadása (admin)
-• `/xp remove <felhasználó> <mennyiség>` - XP levonása (admin)
-• `/xp set <felhasználó> <mennyiség>` - XP beállítása (admin)
-• `/top` - Toplista megjelenítése
+\*XP parancsok:\*
+• `/xp show [felhasználó]` – XP és szint lekérdezése
+• `/xp add <felhasználó> <mennyiség>` – XP hozzáadása (admin)
+• `/xp remove <felhasználó> <mennyiség>` – XP levonása (admin)
+• `/xp set <felhasználó> <mennyiség>` – XP beállítása (admin)
+• `/top` – Toplista megjelenítése
+• `/rank [felhasználó]` – Rang megjelenítése XP alapján
 
-*Üzenet parancsok:*
-• `/send dm <üzenet> <felhasználó>` - Privát üzenet küldése
-• `/send server <üzenet> <csatorna> [felhasználó]` - Üzenet küldése szerver csatornába
+\*Üzenet parancsok:\*
+• `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
+• `/send server <üzenet> <csatorna> [felhasználó]` – Üzenet küldése szerver csatornába
 
-*FŐADMIN parancsok:*
-• `/poweroff` - bot leállítás (bot admin)
-• `/reboot` - bot újraindítás (bot admin)
-• `/update` - bot frissítés (bot admin)
+\*Csatorna beállítás parancsok:\*
+• `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
+• `/set_level_up_channel <csatorna>` – Szintlépő csatorna beállítása (admin)
+
+\*FŐADMIN parancsok:\*
+• `/poweroff` – Bot leállítás (bot admin)
+• `/reboot` – Bot újraindítás (bot admin)
+• `/update` – Bot frissítés (bot admin)
 """
 
 HELP_MESSAGE_NSFW = ""
