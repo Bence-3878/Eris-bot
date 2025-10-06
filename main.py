@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# 1.4.0
+
 import asyncio
 import sys
 from pickle import FALSE, GLOBAL
@@ -27,7 +30,7 @@ try:                                                # Megkíséreljük az adatb�
         host="localhost",                           # Adatbázis szerver címe
         user="root",                                # Adatbázis felhasználónév
         password="alma",                            # Adatbázis jelszó (demó érték, élesben ne így tárold)
-        database="discord_bot1",                     # Használt adatbázis neve
+        database="discord_bot2",                     # Használt adatbázis neve
         port=3306,                                  # MySQL port
         auth_plugin='mysql_native_password'         # Hitelesítési plugin (kompatibilitási okokból)
     )
@@ -63,19 +66,6 @@ intents = discord.Intents.default()                 # Alapértelmezett intentek 
 intents.message_content = True                      # Üzenettartalom olvasásának engedélyezése (parancsokhoz szükséges)
 intents.members = True                              # Tag események engedélyezése (pl. belépés)
 
-# Modul-szintű logger, egyszeri konfigurációval (duplikált handlerek elkerülése)
-loggerxp = logging.getLogger(__name__)
-loggerxp.setLevel(logging.INFO)
-if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) and str(h.baseFilename).endswith("xp.log")
-           for h in loggerxp.handlers):
-    _err_handler = logging.FileHandler('xp.log', encoding='utf-8')
-    _err_handler.setLevel(logging.ERROR)
-    _err_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    loggerxp.addHandler(_err_handler)
-intents = discord.Intents.default()                 # Alapértelmezett intentek (engedélyek) létrehozása
-intents.message_content = True                      # Üzenettartalom olvasásának engedélyezése (parancsokhoz szükséges)
-intents.members = True                              # Tag események engedélyezése (pl. belépés)
-
 client = discord.Client(intents=intents)            # Discord kliens példány létrehozása a megadott intentekkel
 tree = app_commands.CommandTree(client)             # SLASH parancs fa a Client-hez
 sess = requests.Session()
@@ -86,7 +76,7 @@ levels = [0,level1]
 for i in range(1,1000000):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
     m = levels[i] + n                               # Következő szint össz-XP küszöb (kumulált)
-    if m > (2**31 - 1) * 4:
+    if m > (2**31 - 1) * 5:
         break
     levels.append(m)                                # Hozzáadás a listához
 
@@ -799,7 +789,8 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp_text, user_xp_text_add, user_xp_text_monthly, valami1 FROM server_users WHERE user_id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add, user_xp_text_monthly, user_xp_text_monthly_add '
+            'FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
         row = cursor.fetchone()
@@ -808,7 +799,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_xp = amount
             new_level = level(new_xp)
             cursor.execute(
-                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, valami1, level_text, level_monthly)'
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, user_xp_text_monthly_add, level_text, level_monthly)'
                 ' VALUES (%s, %s, %s, %s, %s, %s)',
                 (user.id, interaction.guild.id, new_xp, new_xp, new_level, new_level)
             )
@@ -819,7 +810,7 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_level = level(int(row[0]) + int(row[1]) + amount)
             new_level_monthly = level(int(row[2]) + int(valami1) + amount)
             cursor.execute(
-                'UPDATE server_users SET user_xp_text_add = %s, valami1 = %s, level_text = %s, level_monthly = %s '
+                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, level_text = %s, level_monthly = %s '
                 'WHERE user_id = %s AND server_id = %s',
                 (new_xp, new_xp_monthly, new_level,new_level_monthly, user.id, interaction.guild.id)
             )
@@ -858,7 +849,8 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
     cursor = leveldb.cursor()
     try:
         cursor.execute(
-            'SELECT user_xp_text, user_xp_text_add FROM server_users WHERE user_id = %s AND server_id = %s',
+            'SELECT user_xp_text, user_xp_text_add, user_xp_text_monthly_add '
+            'FROM server_users WHERE user_id = %s AND server_id = %s',
             (user.id, interaction.guild.id)
         )
         row = cursor.fetchone()
@@ -867,8 +859,10 @@ async def xp_remove(interaction: discord.Interaction, user: discord.Member, amou
             return
 
         cursor.execute(
-            'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
-            (int(row[1]) - amount, level(int(row[0]) + int(row[1]) - amount), user.id, interaction.guild.id)
+            'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, '
+            'level_text = %s WHERE user_id = %s AND server_id = %s',
+            (int(row[1]) - amount, int(row[2]) - amount, level(int(row[0]) + int(row[1]) - amount),
+             user.id, interaction.guild.id)
         )
         leveldb.commit()
     except Exception as e:
@@ -912,13 +906,15 @@ async def xp_set(interaction: discord.Interaction, user: discord.Member, amount:
         row = cursor.fetchone()
         if row is not None:
             cursor.execute(
-                'UPDATE server_users SET user_xp_text_add = %s, level_text = %s WHERE user_id = %s AND server_id = %s',
-                (amount - row[0] , level(amount), user.id, interaction.guild.id)
+                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, '
+                'level_text = %s WHERE user_id = %s AND server_id = %s',
+                (amount - row[0], amount - row[0], level(amount), user.id, interaction.guild.id)
             )
         else:
             cursor.execute(
-                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, level_text) VALUES (%s, %s, %s, %s)',
-                (user.id, interaction.guild.id, amount, level(amount))
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, user_xp_text_monthly_add, level_text) '
+                'VALUES (%s, %s, %s, %s, %s)',
+                (user.id, interaction.guild.id, amount, amount, level(amount))
             )
         new_xp = amount
         new_level = level(amount)
@@ -967,7 +963,7 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
         else:
             if monthly:
                 cursor.execute(
-                    'SELECT user_id, user_xp_text_monthly AS total_xp, 0 AS total_xp_add ' #user_xp_text_monthly_add AS total_xp_add  '
+                    'SELECT user_id, user_xp_text_monthly AS total_xp, user_xp_text_monthly_add AS total_xp_add  '
                     'FROM server_users WHERE server_id = %s ORDER BY (total_xp + total_xp_add) DESC LIMIT 10',
                     (interaction.guild.id,)
                 )
@@ -1060,8 +1056,8 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
             else:
                 if monthly:
                     cursor.execute(
-                        'SELECT user_id, user_xp_text_monthly, 0 '
-                        'FROM server_users WHERE server_id = %s ORDER BY user_xp_text_monthly DESC',
+                        'SELECT user_id, user_xp_text_monthly, user_xp_text_monthly_add '
+                        'FROM server_users WHERE server_id = %s ORDER BY (user_xp_text_monthly + user_xp_text_monthly_add) DESC',
                         (interaction.guild.id,)
                     )
                 else:
@@ -1374,35 +1370,34 @@ tree.add_command(send_group)
 
 # Help message constant
 HELP_MESSAGE = """**Bot Parancsok**
-*Alap parancsok:*
-• `/help` - Ezt a súgót jeleníti meg
-• `/level [felhasználó]` - Megmutatja a szinted és XP-d (vagy másét)
-• `/global_level [felhasználó]` - Teljes XP állapot lekérdezése
-• `/test <üzenet>` - Random teszt funkció 
-• `/ping` - Bot késleltetés mutatása
+\*Alap parancsok:\*
+• `/help` – Ezt a súgót jeleníti meg
+• `/ping` – Bot késleltetés mutatása
+• `/test <üzenet>` – Random teszt funkció
 
-*XP parancsok:*
-• `/xp show [felhasználó]` - XP állapot lekérdezése 
-• `/xp add <felhasználó> <mennyiség>` - XP hozzáadása (admin)
-• `/xp remove <felhasználó> <mennyiség>` - XP levonása (admin)
-• `/xp set <felhasználó> <mennyiség>` - XP beállítása (admin)
-• `/top` - Toplista megjelenítése
+\*XP parancsok:\*
+• `/xp show [felhasználó]` – XP és szint lekérdezése
+• `/xp add <felhasználó> <mennyiség>` – XP hozzáadása (admin)
+• `/xp remove <felhasználó> <mennyiség>` – XP levonása (admin)
+• `/xp set <felhasználó> <mennyiség>` – XP beállítása (admin)
+• `/top` – Toplista megjelenítése
+• `/rank [felhasználó]` – Rang megjelenítése XP alapján
 
-*Üzenet parancsok:*
-• `/send dm <üzenet> <felhasználó>` - Privát üzenet küldése
-• `/send server <üzenet> <csatorna> [felhasználó]` - Üzenet küldése szerver csatornába
+\*Üzenet parancsok:\*
+• `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
+• `/send server <üzenet> <csatorna> [felhasználó]` – Üzenet küldése szerver csatornába
 
-*FŐADMIN parancsok:*
-• `/sql <text>` - sql lekérdezés (bot admin)
-• `/poweroff` - bot leállítás (bot admin)
-• `/reboot` - bot újraindítás (bot admin)
-• `/update` - bot frissítés (bot admin)
+\*Csatorna beállítás parancsok:\*
+• `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
+• `/set_level_up_channel <csatorna>` – Szintlépő csatorna beállítása (admin)
+
+\*FŐADMIN parancsok:\*
+• `/poweroff` – Bot leállítás (bot admin)
+• `/reboot` – Bot újraindítás (bot admin)
+• `/update` – Bot frissítés (bot admin)
 """
 
-HELP_MESSAGE_NSFW = """
-*NSFW parancsok*
-• `/rule34` - nsfw kép generálás (NSFWcsatornában)
-"""
+HELP_MESSAGE_NSFW = ""
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
 async def slash_help(interaction: discord.Interaction):
@@ -1411,9 +1406,10 @@ async def slash_help(interaction: discord.Interaction):
             await interaction.response.send_message(HELP_MESSAGE)
         else:
             await interaction.response.send_message(HELP_MESSAGE + HELP_MESSAGE_NSFW)
-    except discord.HTTPException:
+    except discord.HTTPException as e:
         await interaction.response.defer(ephemeral=True)
-        await error(None,interaction, "Hiba történt a súgó megjelenítésekor.")
+        await error(None,interaction, "Hiba történt a súgó megjelenítésekor.", e)
+
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -1511,6 +1507,11 @@ async def on_ready():                               # Akkor fut, amikor a bot si
     print(discord.__version__)                      # discord.py verzió kiírása
     # SLASH parancsok szinkronizálása (globálisan)
     try:
+        cursor = leveldb.cursor()
+    except Exception as e:
+        await error(None,None,"Adatbázis kapcsolat hiba",e)
+        exit(2)
+    try:
         await tree.sync()
         print("Slash parancsok szinkronizálva.")
         # Extra: per-guild szinkronizáció és ellenőrzés
@@ -1521,9 +1522,9 @@ async def on_ready():                               # Akkor fut, amikor a bot si
             except Exception as ge:
                 print(f"Per-guild sync hiba {g.name} ({g.id}): {ge}")
 
-            cursor = leveldb.cursor()
+
             try:
-                cursor.execute('SELECT * FROM servers WHERE id = %s', (g.id,))
+                cursor.execute('SELECT 1 FROM servers WHERE id = %s', (g.id,))
                 row1 = cursor.fetchone()
 
                 if row1 is None:
@@ -1534,7 +1535,7 @@ async def on_ready():                               # Akkor fut, amikor a bot si
             except Exception as e:
                 await error(None,None,"Szerver adatbázis ellenőrzési hiba",e)
         try:
-            cursor.execute('SELECT * FROM servers WHERE id = 0')
+            cursor.execute('SELECT 1 FROM servers WHERE id = 0')
             row1 = cursor.fetchone()
 
             if row1 is None:
@@ -1546,7 +1547,8 @@ async def on_ready():                               # Akkor fut, amikor a bot si
 
         for u in client.users:
             try:
-                cursor.execute('SELECT * FROM users WHERE id = %s', (u.id,))
+                cursor = leveldb.cursor()
+                cursor.execute('SELECT 1 FROM users WHERE id = %s', (u.id,))
                 row1 = cursor.fetchone()
 
                 if row1 is None:
