@@ -760,7 +760,7 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         # a 'sess' meglévő requests.Session az alkalmazásban
         r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
 
-        post_id = image_url.split('id=')[-1]
+        post_id = url.split('id=')[-1]
         post_id = post_id.split('&')[0]
         # Get final image for that id
         r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
@@ -787,7 +787,7 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
     if search is None:
         try:
             loop = asyncio.get_running_loop()
-            _, status_code,image_url  = await loop.run_in_executor(None, _fetch_random)
+            _, status_code, url  = await loop.run_in_executor(None, _fetch_random)
 
         except Exception as e:
             # Hiba esetén értesítsük az admint és csendben térjünk vissza
@@ -839,7 +839,7 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
                 return
 
             # Random kép kiválasztása és küldése
-            image_url = random.choice(image_links)
+            url = random.choice(image_links)
 
 
         except Exception as parse_err:
@@ -871,9 +871,6 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
 
     try:
         soup = BeautifulSoup(html, 'html.parser')
-
-
-
         thumbnails = soup.find_all('div', class_='link-list')
 
         a = thumbnails[0].find_all('a')
@@ -884,11 +881,44 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
             image_url = image_url2
         else:
             image_url = image_url1
+
+        if search is None:
+            title = "Random"
+        else:
+            title = "mi írjak ide???"
+
+
         embed = discord.Embed(
-            title=search,
+            title=title,
+            description=f"[Link](https://rule34.xxx{url})",
             color=discord.Color.red()
         )
         embed.set_image(url=image_url)
+
+        taglist = soup.find('ul', {'id': 'tag-sidebar'})
+        taglist = taglist.find_all('li')
+        taglist = [tag.text.strip() for tag in taglist]
+
+        if 'Copyright' in taglist[0]:
+            pass
+        for tag in taglist:
+            if 'Copyright' in tag:
+
+                break
+            elif 'Character' in tag:
+                break
+            elif 'Artist' in tag:
+                break
+            elif 'General' in tag:
+                break
+            elif 'Meta' in tag:
+                break
+            else:
+                pass
+
+
+
+
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
         return
 
