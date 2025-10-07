@@ -801,12 +801,12 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         }
         # a 'sess' meglévő requests.Session az alkalmazásban
         r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
-        r2 = sess.post(
-            "https://rule34.xxx/index.php?page=search",
-            data={"tags": f"{search}", "commit": "Search"},
-            headers=headers,
-            timeout=15,
-        )
+
+        post_id = image_url.split('id=')[-1]
+        post_id = post_id.split('&')[0]
+        # Get final image for that id
+        r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
+        #print(r2.text)
 
         return r1.status_code, r2.status_code, r2.text
 
@@ -830,6 +830,35 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         await error_interaction(interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
         await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
         return
+
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+
+
+
+        thumbnails = soup.find_all('div', class_='link-list')
+
+        a = thumbnails[0].find_all('a')
+        image_url1 = a[1]['href']
+        image_url2 = a[2]['href']
+
+        if image_url1 == '#':
+            image_url = image_url2
+        else:
+            image_url = image_url1
+        embed = discord.Embed(
+            title=search,
+            color=discord.Color.red()
+        )
+        embed.set_image(url=image_url)
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+        return
+
+    except Exception as parse_err:
+        await error_interaction(interaction,"", parse_err)
+        await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+
+
 
 
 
