@@ -751,8 +751,62 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         )
         return r1.status_code, r2.status_code, r2.text
 
+    def _fetch2():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+
+        post_id = image_url.split('id=')[-1]
+        post_id = post_id.split('&')[0]
+        # Get final image for that id
+        r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
+        #print(r2.text)
+
+        return r1.status_code, r2.status_code, r2.text
+
+    def _fetch_random():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+
+        # Random kép lekérése
+        r2 = sess.get("https://rule34.xxx/index.php?page=post&s=random", headers=headers, timeout=15)
+        # Extract the id from URL
+
+        return r1.status_code, r2.status_code, r2.url
+
+
     if search is None:
-        pass
+        try:
+            loop = asyncio.get_running_loop()
+            _, status_code,image_url  = await loop.run_in_executor(None, _fetch_random)
+
+        except Exception as e:
+            # Hiba esetén értesítsük az admint és csendben térjünk vissza
+            await error_interaction(interaction, "Az API nem elérhető.", e)
+
+            # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+            with contextlib.suppress(Exception):
+                await interaction.delete_original_response()
+            return
+
+        if status_code != 200:
+            # Admin értesítése, majd rövid hibaüzenet
+            await error_interaction(interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+            await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+            return
+
+            # HTML feldolgozása – keressünk néhány találati linket
+
+
     else:
         try:
             loop = asyncio.get_running_loop()
@@ -793,22 +847,6 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
             await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
 
 
-    def _fetch2():
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Referer": "https://rule34.xxx/",
-        }
-        # a 'sess' meglévő requests.Session az alkalmazásban
-        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
-
-        post_id = image_url.split('id=')[-1]
-        post_id = post_id.split('&')[0]
-        # Get final image for that id
-        r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
-        #print(r2.text)
-
-        return r1.status_code, r2.status_code, r2.text
 
 
 
