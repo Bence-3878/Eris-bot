@@ -1005,42 +1005,6 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             ephemeral=True
         )
 
-@send_group.command(name="server")
-@app_commands.describe(text="üzenet", channel="melyik csatornába?", user="kinek küldjem?")
-async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel, user: discord.Member | None = None):
-    try:
-        # Először válaszolunk az interakcióra hogy ne időzzön ki
-        await interaction.response.defer(ephemeral=True)
-
-        # Megpróbáljuk elküldeni az üzenetet a szerverre
-        await channel.send(f"{user.mention} {text}")
-
-        # Sikeres küldés visszajelzése
-        await interaction.followup.send(
-            f"Üzenet sikeresen elküldve {user.mention} részére!",
-            ephemeral=True
-        )
-
-
-    except discord.Forbidden:
-        # Ha nincs jogosultság az üzenet küldésére
-        await interaction.followup.send(
-            f"Nem tudtam elküldeni az üzenetet a {channel.mention} csatornába - "
-            "nincs megfelelő jogosultságom.",
-            ephemeral=True
-        )
-
-    except Exception as e:
-
-        await error(None,interaction, f"Szerver üzenet küldési hiba\n"
-                                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                                    f"Címzett: {user} (ID: {user.id})\n"
-                                    f"Célcsatorna: {channel.name} (ID: {channel.id})", e)
-
-        await interaction.followup.send(
-            "Váratlan hiba történt az üzenet küldése közben.",
-            ephemeral=True
-        )
 
 tree.add_command(send_group)
 
