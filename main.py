@@ -81,6 +81,8 @@ for i in range(1,1000000):                              # 1-től 99-ig generálu
     levels.append(m)                                # Hozzáadás a listához
 
 
+###### config változók ######
+
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
@@ -1269,6 +1271,7 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
         if row is None:
             cursor.execute(
                 'INSERT INTO users (id) VALUES (%s)',
+                (member.id,)
             )
     except Exception as e:
         cursor.close()
