@@ -81,9 +81,6 @@ for i in range(1,1000000):                              # 1-től 99-ig generálu
     levels.append(m)                                # Hozzáadás a listához
 
 
-#######################init##########################
-
-
 
 admin_id = 543856425131180036                       # Az admin fő fiókjának ID-ja
 
@@ -209,13 +206,6 @@ def gPX(message: discord.Message):                                         # Heu
     else:
         r = 0
     xp = n + m + r
-    #log = (
-    #    "Id: " + str(message.author.id) + " | " + message.author.name + "#" + message.author.discriminator + "\n"
-    #    "Szerver: " + str(message.guild.id) + " | " + message.guild.name + "\n"
-    #    "D:" + str(d) +" | D2:" + str(d2) + " | R:" + str(r) + " | N:" + str(n) + " | M:" + str(m) + "\n"
-    #
-    #)
-    #loggerxp.info(log)
     return xp
 
 def level(xp):                                      # XP -> szint átalakítás (legnagyobb i, ahol levels[i] <= xp)
@@ -731,7 +721,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
             ephemeral=True
         )
-        await error(None,interaction, None,"Az adatbázis nem érhető el.")
+        await error(None,interaction, "Az adatbázis nem érhető el.")
         return
     if interaction.guild is None:
         await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
@@ -747,7 +737,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         result = cursor.fetchone()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        await error(None,interaction, None,f"Adatbázis hiba: {e.msg}", e)
+        await error(None,interaction, f"Adatbázis hiba: {e.msg}", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -1391,7 +1381,6 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 *Üzenet parancsok:*
 • `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
-• `/send server <üzenet> <csatorna> [felhasználó]` – Üzenet küldése szerver csatornába
 
 *Csatorna beállítás parancsok:*
 • `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
@@ -1673,6 +1662,7 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
         if row is None:
             cursor.execute(
                 'INSERT INTO users (id) VALUES (%s)',
+                (member.id,)
             )
     except Exception as e:
         cursor.close()
