@@ -761,12 +761,13 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         if search is None:
             title = "Random"
         else:
-            title = "mi írjak ide???"
+            title = "Keresés: " + search
 
 
         embed = discord.Embed(
             title=title,
-            description=f"[Link](https://rule34.xxx{url})",
+            description=f"[A kép linkje](https://rule34.xxx{url})",
+            #url=f"https://rule34.xxx{url}",
             color=discord.Color.red()
         )
         embed.set_image(url=image_url)
@@ -774,28 +775,57 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         taglist = soup.find('ul', {'id': 'tag-sidebar'})
         taglist = taglist.find_all('li')
         taglist = [tag.text.strip() for tag in taglist]
-
+        copyright_ = []
+        character = []
+        artist = []
+        general = []
+        meta = []
+        i = 0
         if 'Copyright' in taglist[0]:
-            pass
-        for tag in taglist:
-            if 'Copyright' in tag:
+            i += 1
+            while ('Character' not in taglist[i] and 'Artist' not in taglist[i] and
+                   'General' not in taglist[i] and 'Meta' not in taglist[i]):
+                copyright_.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Character' in taglist[i]:
+            i += 1
+            while 'Artist' not in taglist[i] and 'General' not in taglist[i] and 'Meta' not in taglist[i]:
 
-                break
-            elif 'Character' in tag:
-                break
-            elif 'Artist' in tag:
-                break
-            elif 'General' in tag:
-                break
-            elif 'Meta' in tag:
-                break
-            else:
-                pass
+                character.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Artist' in taglist[i]:
+            i += 1
+            while 'General' not in taglist[i] and 'Meta' not in taglist[i]:
+                artist.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'General' in taglist[i]:
+            i += 1
+            while 'Meta' not in taglist[i]:
+                general.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Meta' in taglist[i]:
+            i += 1
+            while i < len(taglist):
+                meta.append(taglist[i].split('\n')[1])
+                i += 1
+        if copyright_ != []:
+            embed.add_field(name='Copyright', value=', '.join(copyright_), inline=False)
+        if character != []:
+            embed.add_field(name='Character', value=', '.join(character), inline=False)
+        if artist != []:
+            embed.add_field(name='Artist', value=', '.join(artist), inline=False)
+        if general != []:
+            embed.add_field(name='General', value=', '.join(general), inline=False)
+        if meta != []:
+            embed.add_field(name='Meta', value=', '.join(meta), inline=False)
 
-
+        embed.set_author(name=str(interaction.client.user.display_name), icon_url=interaction.client.user.display_avatar.url)
+        #embed.timestamp(datetime.now())
+        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://rule34.xxx/favicon.ico")
 
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
         return
 
     except Exception as parse_err:
@@ -1769,6 +1799,10 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
 
 @client.event
 async def on_member_remove(member):
+    pass
+
+@client.event
+async def on_reaction_add(reaction, user):
     pass
 
 
