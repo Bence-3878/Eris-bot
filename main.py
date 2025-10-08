@@ -1269,6 +1269,7 @@ async def on_member_join(member):                   # Akkor fut, amikor új tag 
         if row is None:
             cursor.execute(
                 'INSERT INTO users (id) VALUES (%s)',
+                (member.id,)
             )
     except Exception as e:
         cursor.close()
