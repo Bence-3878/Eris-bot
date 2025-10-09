@@ -837,7 +837,8 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_xp = amount
             new_level = level(new_xp)
             cursor.execute(
-                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, user_xp_text_monthly_add, level_text, level_monthly)'
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, '
+                'user_xp_text_monthly_add, level_text, level_monthly)'
                 ' VALUES (%s, %s, %s, %s, %s, %s)',
                 (user.id, interaction.guild.id, new_xp, new_xp, new_level, new_level)
             )
@@ -848,7 +849,8 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_level = level(int(row[0]) + int(row[1]) + amount)
             new_level_monthly = level(int(row[2]) + int(valami1) + amount)
             cursor.execute(
-                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, level_text = %s, level_monthly = %s '
+                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, '
+                'level_text = %s, level_monthly = %s '
                 'WHERE user_id = %s AND server_id = %s',
                 (new_xp, new_xp_monthly, new_level,new_level_monthly, user.id, interaction.guild.id)
             )
@@ -992,11 +994,13 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
         if globalis:
             if monthly:
                 cursor.execute(
-                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 '
+                    'FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
             else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users '
+                    'GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
         else:
             if monthly:
@@ -1059,7 +1063,8 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
 
 @tree.command(name="rank", description="Megjeleníti a felhasználó rangját (helyezését) az XP alapján.")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None, globalis: bool = False, monthly: bool = False):
+async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None
+                       , globalis: bool = False, monthly: bool = False):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a rang funkció ideiglenesen nem működik.',
@@ -1075,11 +1080,13 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         if interaction.guild is None:
             if globalis:
                 cursor.execute(
-                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 '
+                        'FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                 )
             else:
                 cursor.execute(
-                    'SELECT user_id, user_xp_text, 0 FROM server_users WHERE server_id = 0 ORDER BY user_xp_text DESC'
+                    'SELECT user_id, user_xp_text, 0 FROM server_users '
+                    'WHERE server_id = 0 ORDER BY user_xp_text DESC'
                 )
         else:
             if globalis:
@@ -1428,6 +1435,54 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
                 interaction, f"DM küldési hiba:\n"
                         f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
                         f"Címzett: {user} (ID: {user.id})", e
+            )
+        await interaction.followup.send(
+            "Váratlan hiba történt az üzenet küldése közben.",
+            ephemeral=True
+        )
+
+@send_group.command(name="server")
+@app_commands.describe(text="üzenet", channel="melyik csatornába?")
+@app_commands.guild_only()
+async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel | None = None):
+    await interaction.response.defer(ephemeral=True)
+    if channel is None:
+        if interaction.channel is None:
+            await interaction.followup.send(
+                "Nem tudom melyik csatornába küldjem az üzenetet.",
+                ephemeral=True
+            )
+            return
+        channel = interaction.channel
+    try:
+        if not channel.permissions_for(interaction.guild.me).send_messages:
+            await interaction.followup.send(
+                f"Nem tudok üzenetet küldeni a {channel.mention} csatornába - "
+                "valószínűleg nincs jogosultságom írni oda.",
+                ephemeral=True
+            )
+            return
+        if not channel.permissions_for(interaction.user).send_messages:
+            await interaction.followup.send(
+                f"Te nem tudsz üzenetet küldeni a {channel.mention} csatornába.",
+                ephemeral=True
+            )
+            return
+        await channel.send("{} külde az alábbi üzenetet: {}".format(interaction.user.global_name, text))
+        await interaction.followup.send(
+            f"Üzenet sikeresen elküldve {channel.mention} csatornába!",
+            ephemeral=True
+        )
+    except discord.Forbidden:
+        await interaction.followup.send(
+            f"Nem tudtam üzenetet küldeni {channel.mention} csatornába - "
+            "valószínűleg nincs jogosultságom írni oda.",
+            ephemeral=True
+        )
+    except Exception as e:
+        await error(None,interaction, f"Üzenet küldési hiba:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Csatorna: {channel} (ID: {channel.id})", e
             )
         await interaction.followup.send(
             "Váratlan hiba történt az üzenet küldése közben.",
