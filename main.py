@@ -2,17 +2,12 @@
 # 1.4.1
 
 import asyncio
-# import sys
-# from pickle import FALSE, GLOBAL
-
 import discord                                      # Discord bot kliens
-# from discord.ext import commands
 import logging                                      # Naplózás
 import contextlib
 from dotenv import load_dotenv                      # .env betöltés
 import os                                           # Környezeti változók
 import random                                       # Véletlen XP
-# import mysql.connector
 import math                                         # Szintgörbe számításhoz
 from discord import app_commands                    # SLASH parancsok támogatása
 import requests
@@ -511,27 +506,6 @@ async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/B
             # Kis várakozás, hogy ne pörögjön
             await asyncio.sleep(5)
 
-#async def ifno():
-#    if not os.path.exists("data"):
-#        os.mkdir("data")
-#    if not os.path.exists("data/leveldb"):
-#        os.mkdir("data/leveldb")
-#    if not os.path.exists("data/leveldb/server_users"):
-#        with open("data/leveldb/server_users", "wb") as f:
-#            f.write(b"")
-#    if not os.path.exists("data/leveldb/servers"):
-#        with open("data/leveldb/servers", "wb") as f:
-#            f.write(b"")
-#            print(f"admin_user: {admin_user}")
-#            print(f"admin_user.mention: {admin_user.mention}")
-#            print(f"admin_user.id: {admin_user.id}")
-#            print(f"admin_user.name: {admin_user.name}")
-#            print(f"admin_user.discriminator: {admin_user.discriminator}")
-#            print(f"admin_user.bot: {admin_user.bot}")
-#            print(f"admin_user.avatar: {admin_user.avatar}")
-#            print(f"admin_user.default_avatar: {admin_user.default_avatar}")
-#            print(f"admin_user.public_flags: {admin_user.public_flags}")
-#
 
 ##############################################aszinkron függvények######################################################
 
@@ -777,56 +751,6 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
             await interaction.delete_original_response()
         return
 
-
-
-
-
-@tree.command(name="nsfw", nsfw=True)
-async def nsfw(interaction: discord.Interaction):
-    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
-    if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
-            interaction.channel, discord.DMChannel)):
-        await interaction.response.send_message(
-            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
-        return
-
-    # Jelezzük, hogy dolgozunk
-    await interaction.response.defer(ephemeral=False)
-
-    target = interaction.user
-    user_folder = f"/home/bence/Hentai"
-
-    # Ellenőrizzük/létrehozzuk a mappát
-    if not os.path.exists(user_folder):
-        try:
-            os.makedirs(user_folder)
-        except Exception as e:
-            await interaction.followup.send("Hiba történt a mappa létrehozásakor", ephemeral=True)
-            return
-
-    # Képek listázása
-    try:
-        files = [f for f in os.listdir(user_folder)
-                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))]
-
-        if not files:
-            await interaction.followup.send("Nincs kép a mappában", ephemeral=True)
-            return
-
-        # Random kép választása
-        image_path = os.path.join(user_folder, random.choice(files))
-
-        # Kép küldése
-        await interaction.followup.send(
-            file=discord.File(image_path),
-            ephemeral=False
-        )
-
-    except Exception as e:
-        await interaction.followup.send(f"Hiba történt: {str(e)}", ephemeral=True)
-
-
-                                ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
@@ -1249,40 +1173,6 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
 
 
 
-@tree.command(name="levels-recalculated")
-async def levels_recalculated(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-
-    cursor = None
-    try:
-        cursor = leveldb.cursor()
-        # Csak a szükséges oszlopokat kérdezzük le (feltételezve, hogy xp az oszlop neve)
-        cursor.execute('SELECT id, server_id, user_xp FROM server_users')
-        result = cursor.fetchall()
-        for row in result:
-            cursor.execute(
-                'UPDATE server_users SET level = %s WHERE id = %s AND server_id = %s',
-                (level(row[2]), row[0], row[1])
-            )
-        # Módosítások véglegesítése
-        leveldb.commit()
-        await interaction.followup.send("Szintek újraszámolva.", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"Hiba: {str(e)}", ephemeral=True)
-        return
-    finally:
-        if cursor is not None:
-            cursor.close()
-                            ###################szint rendszer###################
-
-
-
-@tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
-@app_commands.describe(text="üzenet")
-async def slash_test(interaction: discord.Interaction, text: str):
-    # A slash opciót paraméterként kapjuk meg
-    print(text)
-
 @tree.command(name="ping")
 async def ping(interaction: discord.Interaction):
     """Displays bot latency"""
@@ -1292,7 +1182,7 @@ async def ping(interaction: discord.Interaction):
 @app_commands.describe(channel="melyik csatornába?")
 @app_commands.guild_only()
 @app_commands.check(admin_or_owner_check)
-async def send_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+async def set_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -1325,11 +1215,48 @@ async def send_welcome_channel(interaction: discord.Interaction, channel: discor
         ephemeral=True
     )
 
+@tree.command(name="set_goodbye_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def set_goodbye_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error(None,interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET goodbye_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error(None,interaction, "Hiba a távozó csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
 @tree.command(name="set_level_up_channel")
 @app_commands.describe(channel="melyik csatornába?")
 @app_commands.guild_only()
 @app_commands.check(admin_or_owner_check)
-async def send_level_up_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+async def set_level_up_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -1361,47 +1288,6 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
         f"Sikerült beállítani a(z) {channel.mention} csatornát.",
         ephemeral=True
     )
-
-#@tree.command(name="set_level_system_enabled")
-#@app_commands.describe(enabled="endedélyezed aszint rendszert?")
-#@app_commands.guild_only()
-#@app_commands.check(admin_or_owner_check)
-#async def send_level_system_enabled(interaction: discord.Interaction, enabled: enum("enabled","disabled","monthly")):
-#    if leveldb is None:
-#        await interaction.response.send_message(
-#            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
-#            ephemeral=True
-#        )
-#        await error(interaction, "Az adatbázis nem érhető el.")
-#        return
-#
-#    cursor = leveldb.cursor()
-#
-#    try:
-#        cursor.execute(
-#                'UPDATE servers SET level_system_enabled = %s WHERE id = %s',
-#                (int(enabled), interaction.guild.id)
-#            )
-#        leveldb.commit()
-#    except Exception as e:
-#        leveldb.rollback()
-#        await error(interaction,"Hiba történt a szintrendszer engedélyének beállítása során", e)
-#        await interaction.response.send_message(
-#        f"**NEM** sikerült beállítani.",
-#        ephemeral=True
-#    )
-#        return
-#    finally:
-#        cursor.close()
-#
-#    await interaction.response.send_message(
-#        f"Sikerült beállítani.",
-#        ephemeral=True
-#    )
-#
-#
-#
-
 
 send_group = app_commands.Group(name="send", description="üzenet")
 
@@ -1441,43 +1327,6 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             ephemeral=True
         )
 
-@send_group.command(name="server")
-@app_commands.describe(text="üzenet", channel="melyik csatornába?", user="kinek küldjem?")
-async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel, user: discord.Member | None = None):
-    try:
-        # Először válaszolunk az interakcióra hogy ne időzzön ki
-        await interaction.response.defer(ephemeral=True)
-
-        # Megpróbáljuk elküldeni az üzenetet a szerverre
-        await channel.send(f"{user.mention} {text}")
-
-        # Sikeres küldés visszajelzése
-        await interaction.followup.send(
-            f"Üzenet sikeresen elküldve {user.mention} részére!",
-            ephemeral=True
-        )
-
-
-    except discord.Forbidden:
-        # Ha nincs jogosultság az üzenet küldésére
-        await interaction.followup.send(
-            f"Nem tudtam elküldeni az üzenetet a {channel.mention} csatornába - "
-            "nincs megfelelő jogosultságom.",
-            ephemeral=True
-        )
-
-    except Exception as e:
-
-        await error(None,interaction, f"Szerver üzenet küldési hiba\n"
-                                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                                    f"Címzett: {user} (ID: {user.id})\n"
-                                    f"Célcsatorna: {channel.name} (ID: {channel.id})", e)
-
-        await interaction.followup.send(
-            "Váratlan hiba történt az üzenet küldése közben.",
-            ephemeral=True
-        )
-
 tree.add_command(send_group)
 
 
@@ -1487,7 +1336,6 @@ HELP_MESSAGE = """**Bot Parancsok**
 *Alap parancsok:*
 • `/help` – Ezt a súgót jeleníti meg
 • `/ping` – Bot késleltetés mutatása
-• `/test <üzenet>` – Random teszt funkció
 
 *XP parancsok:*
 • `/xp show [felhasználó]` – XP és szint lekérdezése
@@ -1534,44 +1382,6 @@ async def slash_help(interaction: discord.Interaction):
 
 
 ##################################################SLASH függvények######################################################
-
-@tree.command(name="sql")
-@app_commands.check(admin_check)
-@app_commands.describe(text="hivás")
-async def sql(interaction: discord.Interaction, text: str):
-    if leveldb is None:
-        await interaction.response.send_message(
-            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
-            ephemeral=True
-        )
-        return
-    cursor = leveldb.cursor()
-    try:
-        cursor.execute(text)
-        result = cursor.fetchone()
-    except mysql.connector.Error as e:
-        await interaction.response.send_message(
-            f'Hiba a SQL-bevitelben: {e.msg}',
-            ephemeral=True
-        )
-        return
-    except Exception as e:
-        await interaction.response.send_message(
-            f'{e}',
-            ephemeral=True
-        )
-        return
-    finally:
-        cursor.close()
-    if result is None:
-        await interaction.response.send_message(
-            "üres lekérés",
-            ephemeral=True
-        )
-    await interaction.response.send_message(
-        str(result),
-        ephemeral=True
-    )
 
 @tree.command(name="poweroff")
 @app_commands.check(admin_check)
