@@ -820,8 +820,15 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
             embed.add_field(name='Meta', value=', '.join(meta), inline=False)
 
         embed.set_author(name=str(interaction.client.user.display_name), icon_url=interaction.client.user.display_avatar.url)
-        #embed.timestamp(datetime.now())
-        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://rule34.xxx/favicon.ico")
+
+        statistics = soup.find('div', {'id': 'stats'})
+        stats = statistics.find_all('li')
+        stats = [stat.text.strip() for stat in stats]
+        if 'Posted:' in stats[1]:
+            timestamp = stats[1].split('Posted:')[0]#.strip('\n')
+        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://cdn.discordapp.com/attachments/1414949405051719912/"
+                                                                "1425895125921304702/Rule_34.png?ex=68e93fd1&is=68e7ee51&hm="
+                                                                "6abf547c2c9e76aaa8896cee7378c6355a3335ef682686c68ac21aa9ca8256ce&")
 
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
@@ -832,53 +839,6 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         await error_interaction(interaction,"", parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
 
-
-
-
-
-@tree.command(name="nsfw", nsfw=True)
-async def nsfw(interaction: discord.Interaction):
-    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
-    if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
-            interaction.channel, discord.DMChannel)):
-        await interaction.response.send_message(
-            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
-        return
-
-    # Jelezzük, hogy dolgozunk
-    await interaction.response.defer(ephemeral=False)
-
-    target = interaction.user
-    user_folder = f"/home/bence/Hentai"
-
-    # Ellenőrizzük/létrehozzuk a mappát
-    if not os.path.exists(user_folder):
-        try:
-            os.makedirs(user_folder)
-        except Exception as e:
-            await interaction.followup.send("Hiba történt a mappa létrehozásakor", ephemeral=True)
-            return
-
-    # Képek listázása
-    try:
-        files = [f for f in os.listdir(user_folder)
-                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))]
-
-        if not files:
-            await interaction.followup.send("Nincs kép a mappában", ephemeral=True)
-            return
-
-        # Random kép választása
-        image_path = os.path.join(user_folder, random.choice(files))
-
-        # Kép küldése
-        await interaction.followup.send(
-            file=discord.File(image_path),
-            ephemeral=False
-        )
-
-    except Exception as e:
-        await interaction.followup.send(f"Hiba történt: {str(e)}", ephemeral=True)
 
 
                                 ###################nsfw###################
