@@ -1293,7 +1293,8 @@ send_group = app_commands.Group(name="send", description="üzenet")
 
 @send_group.command(name="dm")
 @app_commands.describe(text="üzenet", user="kinek küldjem?", everyone="@everyone engedélyezése")
-async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None, everyone: bool = False):
+async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None,
+                  everyone: bool = False, random: bool = False):
     await interaction.response.defer(ephemeral=True)
     if everyone and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send(
@@ -1336,6 +1337,46 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
                 f"Botok száma: {bot_count}.",
                 ephemeral=True
             )
+        elif random and False:
+            if interaction.guild is None:
+                await interaction.followup.send(
+                    "A random csak szerveren használható.",
+                    ephemeral=True
+                )
+                return
+            number = 0
+            # Minden tag lekérése a szerverről
+            for members in interaction.guild.members:
+                if members.bot:
+                    continue
+                number += 1
+            members = [m for m in interaction.guild.members if not m.bot]
+
+            if not members:
+                await interaction.followup.send(
+                    "Nincs elérhető felhasználó a szerveren.",
+                    ephemeral=True
+                )
+                return
+
+            # Véletlenszerű tag kiválasztása
+            r = random.randint(0, 6)
+            m = random.randint(10, 30)
+            member = members[random.randint(0, number-1)]
+            try:
+                await (interaction.client.get_user(member.id)
+                       .send("{} külde az alábbi üzenetet: {}\n"
+                             "Ez egy random üzenet nem tudja hogy neked küldte".format(interaction.user.mention, text)))
+                await interaction.followup.send(
+                    f"Üzenet sikeresen elküldve {member.mention} részére!",
+                    ephemeral=True
+                )
+            except discord.Forbidden:
+                await interaction.followup.send(
+                    f"Nem tudtam üzenetet küldeni {member.mention} részére - "
+                    "valószínűleg letiltotta a DM-eket.",
+                    ephemeral=True
+                )
         else:
             try:
                 if user is None:
@@ -1373,6 +1414,12 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
         if everyone:
             await error(None,
                 interaction, f"DM küldési hiba @everyone opcióval:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Szerver: {interaction.guild} (ID: {interaction.guild.id})", e
+            )
+        if random:
+            await error(None,
+                interaction, f"DM küldési hiba random opcióval:\n"
                         f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
                         f"Szerver: {interaction.guild} (ID: {interaction.guild.id})", e
             )
