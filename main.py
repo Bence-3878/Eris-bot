@@ -1,24 +1,19 @@
 # -*- coding: utf-8 -*-
-# 1.4.0
+# 1.4.1
 
 import asyncio
-import sys
-from pickle import FALSE, GLOBAL
-
 import discord                                      # Discord bot kliens
-# from discord.ext import commands
 import logging                                      # Naplózás
 import contextlib
 from dotenv import load_dotenv                      # .env betöltés
 import os                                           # Környezeti változók
 import random                                       # Véletlen XP
-# import mysql.connector
 import math                                         # Szintgörbe számításhoz
 from discord import app_commands                    # SLASH parancsok támogatása
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime #, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 #####################################################import#############################################################
@@ -76,7 +71,7 @@ levels = [0,level1]
 for i in range(1,1000000):                              # 1-től 99-ig generálunk küszöböket (összesen 100 szint körül)
     n = int(level1*math.pow(levelq,i))              # i-edik szinthez többlet XP (geometriai növekedés)
     m = levels[i] + n                               # Következő szint össz-XP küszöb (kumulált)
-    if m > (2**31 - 1) * 3:
+    if m > (2**31 - 1) * 5:
         break
     levels.append(m)                                # Hozzáadás a listához
 
@@ -101,7 +96,7 @@ OwO = ["OwO", "UwU", "OwU", "UwO", "O_O", "TwT"]
 def restart():
     os.system("nohup python3 main.py &")
     exit(1)
-    os.execv(sys.executable, ['python'] + sys.argv)
+    # os.execv(sys.executable, ['python'] + sys.argv)
 
 
 
@@ -349,6 +344,7 @@ async def other_messege(message: discord.Message):
                                                   f"Ennél értelmesebb dolgot is lehetne csinálni")
 
 
+
             except Exception as e:
                 leveldb.rollback()  # Visszagörgetés
                 cursor.close()  # Kurzor lezárása
@@ -453,7 +449,308 @@ async def admin_check(interaction: discord.Interaction) -> bool:
         raise app_commands.CheckFailure('Nincs jogosultságod ehhez a parancshoz.')
     return True
 
-###############################################parancsok######################################################
+
+
+
+
+async def monthly_job():
+    if leveldb is None:
+        await error(None,None,"A dataprogram nem fut.")
+        restart()
+    else:
+        cursor = leveldb.cursor()
+        result = 0
+        try:
+            cursor.execute('SELECT user_id, server_id FROM server_users')
+            result = cursor.fetchall()
+        except mysql.connector.Error as e:
+            await error(None,None,"Hiba a ",e)
+
+        for row in result:
+            id, server_id = row
+            try:
+                cursor.execute('UPDATE server_users SET user_xp_monthly = 0, valami1 = 0 WHERE user_id = %s AND server_id = %s',
+                    (id, server_id)
+                )
+            except mysql.connector.Error as e:
+                await error(None,None,"Hiba a ",e)
+
+async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/Budapest")):
+    # Várjuk meg, míg a bot készen áll
+    await client.wait_until_ready()
+    while not client.is_closed():
+        now = datetime.now(tz)
+        # Következő futási idő: a legközelebbi hónap 1-je [hour:minute]
+        year, month = now.year, now.month
+
+        # Ha ma még az adott időpont előtt vagyunk és ma 1-je van, akkor ma fut
+        if now.day == 1 and (now.hour, now.minute) < (hour, minute):
+            target_year, target_month = year, month
+        else:
+            if month == 12:
+                target_year, target_month = year + 1, 1
+            else:
+                target_year, target_month = year, month + 1
+
+        run_at = datetime(target_year, target_month, 1, hour, minute, tzinfo=tz)
+        sleep_seconds = max(1.0, (run_at - now).total_seconds())
+        try:
+            await asyncio.sleep(sleep_seconds)
+            await monthly_job()
+        except asyncio.CancelledError:
+            # Leállításkor kilépünk
+            break
+        except Exception as e:
+            # Ne álljon le a ciklus egy kivétel miatt
+            print(f"[Scheduler] Hiba a havi feladat futtatása közben: {e!r}")
+            # Kis várakozás, hogy ne pörögjön
+            await asyncio.sleep(5)
+
+
+##############################################aszinkron függvények######################################################
+
+
+
+@tree.command(name="rule34", nsfw=True)
+@app_commands.describe(search="Keresés", ephemeral="Rejtett (ephemeral) választ kérsz?")
+async def rule34(interaction: discord.Interaction, search: str | None = None, ephemeral: bool = False):
+    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
+    if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
+            interaction.channel, discord.DMChannel)):
+        await interaction.response.send_message(
+            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
+        return
+
+    # Jelezzük, hogy dolgozunk (és ne küldjünk kétszer választ)
+    await interaction.response.defer(ephemeral=ephemeral)
+
+
+    # Kérés futtatása külön szálon, fejlécekkel
+    def _fetch():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+        r2 = sess.post(
+            "https://rule34.xxx/index.php?page=search",
+            data={"tags": f"{search}", "commit": "Search"},
+            headers=headers,
+            timeout=15,
+        )
+        return r1.status_code, r2.status_code, r2.text
+
+    def _fetch2():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+
+        post_id = url.split('id=')[-1]
+        post_id = post_id.split('&')[0]
+        # Get final image for that id
+        r2 = sess.get(f"https://rule34.xxx/index.php?page=post&s=view&id={post_id}", headers=headers, timeout=15)
+        #print(r2.text)
+
+        return r1.status_code, r2.status_code, r2.text
+
+    def _fetch_random():
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rule34.xxx/",
+        }
+        # a 'sess' meglévő requests.Session az alkalmazásban
+        r1 = sess.get("https://rule34.xxx/", headers=headers, timeout=10)
+
+        # Random kép lekérése
+        r2 = sess.get("https://rule34.xxx/index.php?page=post&s=random", headers=headers, timeout=15)
+        # Extract the id from URL
+
+        return r1.status_code, r2.status_code, r2.url
+
+
+    if search is None:
+        try:
+            loop = asyncio.get_running_loop()
+            _, status_code, url  = await loop.run_in_executor(None, _fetch_random)
+
+        except Exception as e:
+            # Hiba esetén értesítsük az admint és csendben térjünk vissza
+            await error(None, interaction, "Az API nem elérhető.", e)
+
+            # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+            with contextlib.suppress(Exception):
+                await interaction.delete_original_response()
+            return
+
+        if status_code != 200:
+            # Admin értesítése, majd rövid hibaüzenet
+            await error(None, interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+            await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+            return
+
+            # HTML feldolgozása – keressünk néhány találati linket
+
+
+    else:
+        try:
+            loop = asyncio.get_running_loop()
+            _, status_code, html = await loop.run_in_executor(None, _fetch)
+
+        except Exception as e:
+            # Hiba esetén értesítsük az admint és csendben térjünk vissza
+            await error(None,interaction, "Az API nem elérhető.", e)
+
+            # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+            with contextlib.suppress(Exception):
+                await interaction.delete_original_response()
+            return
+
+
+        if status_code != 200:
+            # Admin értesítése, majd rövid hibaüzenet
+            await error(None,interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+            await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+            return
+
+            # HTML feldolgozása – keressünk néhány találati linket
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            thumbnails = soup.find_all('span', class_='thumb')
+
+            image_links = [thumb.find('a')['href'] for thumb in thumbnails if thumb.find('a')]
+
+            if not image_links:
+                await interaction.followup.send("Nem találtam képeket.", ephemeral=True)
+                return
+
+            # Random kép kiválasztása és küldése
+            url = random.choice(image_links)
+
+
+        except Exception as parse_err:
+            await error(None, interaction, f"Parsing hiba: {parse_err}", parse_err)
+            await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+
+
+
+
+
+    try:
+        loop = asyncio.get_running_loop()
+        _, status_code, html = await loop.run_in_executor(None, _fetch2)
+
+    except Exception as e:
+        # Hiba esetén értesítsük az admint és csendben térjünk vissza
+        await error(None, interaction, "Az API nem elérhető.", e)
+
+        # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
+
+    if status_code != 200:
+        # Admin értesítése, majd rövid hibaüzenet
+        await error(None, interaction, f"A rule34.xxx nem sikerült elérni (HTTP {status_code})")
+        await interaction.followup.send("A rule34.xxx jelenleg nem elérhető.", ephemeral=True)
+        return
+
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        thumbnails = soup.find_all('div', class_='link-list')
+
+        a = thumbnails[0].find_all('a')
+        image_url1 = a[1]['href']
+        image_url2 = a[2]['href']
+
+        if image_url1 == '#':
+            image_url = image_url2
+        else:
+            image_url = image_url1
+
+        if search is None:
+            title = "Random"
+        else:
+            title = "Keresés: " + search
+
+
+        embed = discord.Embed(
+            title=title,
+            description=f"[A kép linkje](https://rule34.xxx{url})",
+            #url=f"https://rule34.xxx{url}",
+            color=discord.Color.red()
+        )
+        embed.set_image(url=image_url)
+
+        taglist = soup.find('ul', {'id': 'tag-sidebar'})
+        taglist = taglist.find_all('li')
+        taglist = [tag.text.strip() for tag in taglist]
+        copyright_ = []
+        character = []
+        artist = []
+        general = []
+        meta = []
+        i = 0
+        if 'Copyright' in taglist[0]:
+            i += 1
+            while ('Character' not in taglist[i] and 'Artist' not in taglist[i] and
+                   'General' not in taglist[i] and 'Meta' not in taglist[i]):
+                copyright_.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Character' in taglist[i]:
+            i += 1
+            while 'Artist' not in taglist[i] and 'General' not in taglist[i] and 'Meta' not in taglist[i]:
+
+                character.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Artist' in taglist[i]:
+            i += 1
+            while 'General' not in taglist[i] and 'Meta' not in taglist[i]:
+                artist.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'General' in taglist[i]:
+            i += 1
+            while 'Meta' not in taglist[i]:
+                general.append(taglist[i].split('\n')[1])
+                i += 1
+        if 'Meta' in taglist[i]:
+            i += 1
+            while i < len(taglist):
+                meta.append(taglist[i].split('\n')[1])
+                i += 1
+        if copyright_ != []:
+            embed.add_field(name='Copyright', value=', '.join(copyright_), inline=False)
+        if character != []:
+            embed.add_field(name='Character', value=', '.join(character), inline=False)
+        if artist != []:
+            embed.add_field(name='Artist', value=', '.join(artist), inline=False)
+        if general != []:
+            embed.add_field(name='General', value=', '.join(general), inline=False)
+        if meta != []:
+            embed.add_field(name='Meta', value=', '.join(meta), inline=False)
+
+        embed.set_author(name=str(interaction.client.user.display_name), icon_url=interaction.client.user.display_avatar.url)
+        #embed.timestamp(datetime.now())
+        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://rule34.xxx/favicon.ico")
+
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+        return
+
+    except Exception as parse_err:
+        await error(None,interaction, f"Parsing hiba", parse_err)
+        await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
+        with contextlib.suppress(Exception):
+            await interaction.delete_original_response()
+        return
+
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
@@ -466,7 +763,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
             ephemeral=True
         )
-        await error(interaction, None,"Az adatbázis nem érhető el.")
+        await error(None,interaction, "Az adatbázis nem érhető el.")
         return
     if interaction.guild is None:
         await interaction.response.send_message('Ez a parancs csak szerveren használható.', ephemeral=True)
@@ -482,7 +779,7 @@ async def xp_show(interaction: discord.Interaction, user: discord.Member | None 
         result = cursor.fetchone()
     except mysql.connector.Error as e:
         await interaction.response.defer(ephemeral=True)
-        await error(interaction, None,f"Adatbázis hiba: {e.msg}", e)
+        await error(None,interaction, f"Adatbázis hiba: {e.msg}", e)
 
         # Töröljük az eredeti (ephemeral) választ, hogy a felhasználó ténylegesen ne lásson semmit
         with contextlib.suppress(Exception):
@@ -876,16 +1173,6 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
 
 
 
-                            ###################szint rendszer###################
-
-
-
-@tree.command(name="test", description="Random teszt funkció. Probáld ki ha mered.")
-@app_commands.describe(text="üzenet")
-async def slash_test(interaction: discord.Interaction, text: str):
-    # A slash opciót paraméterként kapjuk meg
-    print(text)
-
 @tree.command(name="ping")
 async def ping(interaction: discord.Interaction):
     """Displays bot latency"""
@@ -895,7 +1182,7 @@ async def ping(interaction: discord.Interaction):
 @app_commands.describe(channel="melyik csatornába?")
 @app_commands.guild_only()
 @app_commands.check(admin_or_owner_check)
-async def send_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+async def set_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -928,11 +1215,48 @@ async def send_welcome_channel(interaction: discord.Interaction, channel: discor
         ephemeral=True
     )
 
+@tree.command(name="set_goodbye_channel")
+@app_commands.describe(channel="melyik csatornába?")
+@app_commands.guild_only()
+@app_commands.check(admin_or_owner_check)
+async def set_goodbye_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if leveldb is None:
+        await interaction.response.send_message(
+            'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
+            ephemeral=True
+        )
+        await error(None,interaction, "Az adatbázis nem érhető el.")
+        return
+
+    cursor = leveldb.cursor()
+
+    try:
+        cursor.execute(
+                'UPDATE servers SET goodbye_ch = %s WHERE id = %s',
+                (channel.id, interaction.guild.id)
+            )
+        leveldb.commit()
+    except Exception as e:
+        leveldb.rollback()
+        await error(None,interaction, "Hiba a távozó csatorna beállítása során", e)
+        await interaction.response.send_message(
+        f"**NEM** sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+        return
+    finally:
+        cursor.close()
+
+    await interaction.response.send_message(
+        f"Sikerült beállítani a(z) {channel.mention} csatornát.",
+        ephemeral=True
+    )
+
 @tree.command(name="set_level_up_channel")
 @app_commands.describe(channel="melyik csatornába?")
 @app_commands.guild_only()
 @app_commands.check(admin_or_owner_check)
-async def send_level_up_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+async def set_level_up_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a szint funkció ideiglenesen nem működik.',
@@ -964,8 +1288,6 @@ async def send_level_up_channel(interaction: discord.Interaction, channel: disco
         f"Sikerült beállítani a(z) {channel.mention} csatornát.",
         ephemeral=True
     )
-
-# Üzenetküldő parancscsoport: /send dm|server
 
 send_group = app_commands.Group(name="send", description="üzenet")
 
@@ -1005,7 +1327,6 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             ephemeral=True
         )
 
-
 tree.add_command(send_group)
 
 
@@ -1015,7 +1336,6 @@ HELP_MESSAGE = """**Bot Parancsok**
 *Alap parancsok:*
 • `/help` – Ezt a súgót jeleníti meg
 • `/ping` – Bot késleltetés mutatása
-• `/test <üzenet>` – Random teszt funkció
 
 *XP parancsok:*
 • `/xp show [felhasználó]` – XP és szint lekérdezése
@@ -1038,7 +1358,10 @@ HELP_MESSAGE = """**Bot Parancsok**
 • `/update` – Bot frissítés (bot admin)
 """
 
-HELP_MESSAGE_NSFW = ""
+HELP_MESSAGE_NSFW = """
+*NSFW parancsok*
+• `/rule34` - nsfw kép generálás (NSFWcsatornában)
+"""
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
 async def slash_help(interaction: discord.Interaction):
@@ -1057,10 +1380,8 @@ async def slash_help(interaction: discord.Interaction):
             await interaction.delete_original_response()
 
 
-                                   ###################????###################
 
 ##################################################SLASH függvények######################################################
-
 
 @tree.command(name="poweroff")
 @app_commands.check(admin_check)
@@ -1100,7 +1421,6 @@ async def update(interaction: discord.Interaction):
     print(os.system("git pull"))
     restart()
 
-##################################################    Parancsok   ######################################################
 
 
 @client.event                                       # Eseménykezelő regisztrálása a klienshez
@@ -1126,15 +1446,15 @@ async def on_ready():                               # Akkor fut, amikor a bot si
             except Exception as ge:
                 print(f"Per-guild sync hiba {g.name} ({g.id}): {ge}")
 
-
             try:
+                cursor = leveldb.cursor()
                 cursor.execute('SELECT 1 FROM servers WHERE id = %s', (g.id,))
                 row1 = cursor.fetchone()
 
                 if row1 is None:
                     cursor.execute(
-                    'INSERT INTO servers (id) VALUES (%s)',
-                    (g.id,))
+                        'INSERT INTO servers (id) VALUES (%s)',
+                        (g.id,))
                     leveldb.commit()
             except Exception as e:
                 await error(None,None,"Szerver adatbázis ellenőrzési hiba",e)
@@ -1180,6 +1500,8 @@ async def on_ready():                               # Akkor fut, amikor a bot si
         await error(None,None,"Slash parancs szinkronizáció hiba",e)
         print(f"Slash parancs szinkronizáció hiba: {e}")
 
+    # Havi ütemezett feladat indítása: minden hónap 1-jén 00:00 (Európa/Budapest időzóna)
+    asyncio.create_task(run_monthly_at(hour=0, minute=0, tz=ZoneInfo("Europe/Budapest")))
 
 @client.event                                       # Üzenetekre reagáló eseménykezelő
 async def on_message(message):                      # Minden bejövő üzenetre lefut (DM és szerver)
@@ -1297,6 +1619,9 @@ async def on_member_remove(member):
     finally:
         cursor.close()
 
+@client.event
+async def on_reaction_add(reaction, user):
+    pass
 
 # Globális hiba-kezelő a dekorátorok CheckFailure üzeneteihez
 @tree.error
