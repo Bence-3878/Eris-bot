@@ -1316,20 +1316,24 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             # DM küldése minden tagnak
             success_count = 0
             fail_count = 0
+            bot_count = 0
             for member in members:
                 try:
-                    user_id = member.id
-                    hhhhhhhhhhhhhhhhhhh
-
-                    #await ("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+                    if member.bot:
+                        bot_count += 1
+                        continue
+                    # Megpróbáljuk elküldeni a DM-et
+                    await (interaction.client.get_user(member.id)
+                           .send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text)))
                     success_count += 1
                 except discord.Forbidden:
                     fail_count += 1
 
             # Visszajelzés a küldés eredményéről
             await interaction.followup.send(
-                f"Üzenet sikeresen elküldve {success_count} felhasználónak! "
-                f"Nem sikerült {fail_count} felhasználónak (valószínűleg letiltották a DM-eket).",
+                f"Üzenet sikeresen elküldve {success_count} felhasználónak!\n"
+                f"Nem sikerült {fail_count} felhasználónak (valószínűleg letiltották a DM-eket).\n"
+                f"Botok száma: {bot_count}.",
                 ephemeral=True
             )
         else:
