@@ -1292,36 +1292,92 @@ async def set_level_up_channel(interaction: discord.Interaction, channel: discor
 send_group = app_commands.Group(name="send", description="üzenet")
 
 @send_group.command(name="dm")
-@app_commands.describe(text="üzenet", user="kinek küldjem?")
-async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member):
+@app_commands.describe(text="üzenet", user="kinek küldjem?", everyone="@everyone engedélyezése")
+async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None, everyone: bool = False):
+    await interaction.response.defer(ephemeral=True)
+    if everyone and not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send(
+            "Csak adminisztrátorok használhatják a @everyone engedélyezését.",
+            ephemeral=True
+        )
+        return
     try:
-        # Először válaszolunk az interakcióra hogy ne időzzön ki
-        await interaction.response.defer(ephemeral=True)
 
-        # Megpróbáljuk elküldeni a DM-et
-        await user.send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+        if everyone:
+            if interaction.guild is None:
+                await interaction.followup.send(
+                    "A @everyone csak szerveren használható.",
+                    ephemeral=True
+                )
+                return
+            # Minden tag lekérése a szerverről
+            members = interaction.guild.members
 
-        # Sikeres küldés visszajelzése
-        await interaction.followup.send(
-            f"Üzenet sikeresen elküldve {user.mention} részére!",
-            ephemeral=True
-        )
+            # DM küldése minden tagnak
+            success_count = 0
+            fail_count = 0
+            for member in members:
+                try:
+                    user_id = member.id
+                    hhhhhhhhhhhhhhhhhhh
 
-    except discord.Forbidden:
-        # Ha a felhasználó letiltotta a DM-eket
-        await interaction.followup.send(
-            f"Nem tudtam üzenetet küldeni {user.mention} részére - "
-            "valószínűleg letiltotta a DM-eket.",
-            ephemeral=True
-        )
+                    #await ("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+                    success_count += 1
+                except discord.Forbidden:
+                    fail_count += 1
+
+            # Visszajelzés a küldés eredményéről
+            await interaction.followup.send(
+                f"Üzenet sikeresen elküldve {success_count} felhasználónak! "
+                f"Nem sikerült {fail_count} felhasználónak (valószínűleg letiltották a DM-eket).",
+                ephemeral=True
+            )
+        else:
+            try:
+                if user is None:
+                    await interaction.user.send("Ha nem adsz meg senkit akkor neked küldöm el.\n"
+                                                "Nesze itt vagy örülj. {}".format(text))
+                    await interaction.followup.send(
+                        "Nem adtál meg felhasználót, ezért neked küldtem el.",
+                        ephemeral=True)
+                    return
+                if user.bot:
+                    await interaction.followup.send(
+                        "Nem lehet üzenetet küldeni botoknak.",
+                        ephemeral=True
+                    )
+                    return
+                # Megpróbáljuk elküldeni a DM-et
+                await user.send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+
+                # Sikeres küldés visszajelzése
+                await interaction.followup.send(
+                    f"Üzenet sikeresen elküldve {user.mention} részére!",
+                    ephemeral=True
+                )
+
+            except discord.Forbidden:
+                # Ha a felhasználó letiltotta a DM-eket
+                await interaction.followup.send(
+                    f"Nem tudtam üzenetet küldeni {user.mention} részére - "
+                    "valószínűleg letiltotta a DM-eket.",
+                    ephemeral=True
+                )
 
     except Exception as e:
         # Egyéb hibák esetén
-        await error(None,
-            interaction, f"DM küldési hiba:\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                    f"Címzett: {user} (ID: {user.id})", e
-        )
+        if everyone:
+            await error(None,
+                interaction, f"DM küldési hiba @everyone opcióval:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Szerver: {interaction.guild} (ID: {interaction.guild.id})", e
+            )
+        else:
+            await error(None,
+                interaction, f"DM küldési hiba:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Címzett: {user} (ID: {user.id})", e
+            )
         await interaction.followup.send(
             "Váratlan hiba történt az üzenet küldése közben.",
             ephemeral=True
