@@ -1355,7 +1355,7 @@ send_group = app_commands.Group(name="send", description="üzenet")
 @send_group.command(name="dm")
 @app_commands.describe(text="üzenet", user="kinek küldjem?", everyone="@everyone engedélyezése")
 async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None,
-                  everyone: bool = False, random: bool = False):
+                  everyone: bool = False, random: bool = False, id: str | None = None):
     await interaction.response.defer(ephemeral=True)
     if everyone and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send(
@@ -1363,6 +1363,7 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
             ephemeral=True
         )
         return
+
     try:
 
         if everyone:
@@ -1440,13 +1441,29 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
                 )
         else:
             try:
-                if user is None:
+                if user is None and id is None:
                     await interaction.user.send("Ha nem adsz meg senkit akkor neked küldöm el.\n"
                                                 "Nesze itt vagy örülj. {}".format(text))
                     await interaction.followup.send(
                         "Nem adtál meg felhasználót, ezért neked küldtem el.",
                         ephemeral=True)
                     return
+                if user is None and id is not None:
+                    id = id.strip("<@!>")
+                    id = int(id)
+                    if id <= 0:
+                        await interaction.followup.send(
+                            "Érvénytelen ID.",
+                            ephemeral=True
+                        )
+                        return
+                    user = await interaction.client.fetch_user(id)
+                    if user is None:
+                        await interaction.followup.send(
+                            "Nem találtam ilyen ID-jú felhasználót.",
+                            ephemeral=True
+                        )
+                        return
                 if user.bot:
                     await interaction.followup.send(
                         "Nem lehet üzenetet küldeni botoknak.",
