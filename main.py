@@ -697,31 +697,32 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         general = []
         meta = []
         i = 0
-        if 'Copyright' in taglist[0]:
+        tag_num = len(taglist)
+        if i < tag_num and 'Copyright' in taglist[0]:
             i += 1
-            while ('Character' not in taglist[i] and 'Artist' not in taglist[i] and
+            while (i < tag_num and 'Character' not in taglist[i] and 'Artist' not in taglist[i] and
                    'General' not in taglist[i] and 'Meta' not in taglist[i]):
                 copyright_.append(taglist[i].split('\n')[1])
                 i += 1
-        if 'Character' in taglist[i]:
+        if i < tag_num and 'Character' in taglist[i]:
             i += 1
-            while 'Artist' not in taglist[i] and 'General' not in taglist[i] and 'Meta' not in taglist[i]:
+            while i < tag_num and 'Artist' not in taglist[i] and 'General' not in taglist[i] and 'Meta' not in taglist[i]:
 
                 character.append(taglist[i].split('\n')[1])
                 i += 1
-        if 'Artist' in taglist[i]:
+        if i < tag_num and 'Artist' in taglist[i]:
             i += 1
-            while 'General' not in taglist[i] and 'Meta' not in taglist[i]:
+            while i < tag_num and 'General' not in taglist[i] and 'Meta' not in taglist[i]:
                 artist.append(taglist[i].split('\n')[1])
                 i += 1
-        if 'General' in taglist[i]:
+        if i < tag_num and 'General' in taglist[i]:
             i += 1
-            while 'Meta' not in taglist[i]:
+            while i < tag_num and 'Meta' not in taglist[i]:
                 general.append(taglist[i].split('\n')[1])
                 i += 1
-        if 'Meta' in taglist[i]:
+        if i < tag_num and 'Meta' in taglist[i]:
             i += 1
-            while i < len(taglist):
+            while i < tag_num:
                 meta.append(taglist[i].split('\n')[1])
                 i += 1
         if copyright_ != []:
@@ -752,7 +753,8 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
         return
 
     except Exception as parse_err:
-        await error(None,interaction, f"Parsing hiba", parse_err)
+        await error(None,interaction, f"Parsing hiba\n"
+                                        "URL: {}".format(url), parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
 
 
