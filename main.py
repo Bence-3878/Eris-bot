@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 1.4.1
+# 1.4.2
 
 import asyncio
 import discord                                      # Discord bot kliens
@@ -453,59 +453,6 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 
-async def monthly_job():
-    if leveldb is None:
-        await error(None,None,"A dataprogram nem fut.")
-        restart()
-    else:
-        cursor = leveldb.cursor()
-        result = 0
-        try:
-            cursor.execute('SELECT user_id, server_id FROM server_users')
-            result = cursor.fetchall()
-        except mysql.connector.Error as e:
-            await error(None,None,"Hiba a ",e)
-
-        for row in result:
-            id, server_id = row
-            try:
-                cursor.execute('UPDATE server_users SET user_xp_monthly = 0, valami1 = 0 WHERE user_id = %s AND server_id = %s',
-                    (id, server_id)
-                )
-            except mysql.connector.Error as e:
-                await error(None,None,"Hiba a ",e)
-
-async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/Budapest")):
-    # Várjuk meg, míg a bot készen áll
-    await client.wait_until_ready()
-    while not client.is_closed():
-        now = datetime.now(tz)
-        # Következő futási idő: a legközelebbi hónap 1-je [hour:minute]
-        year, month = now.year, now.month
-
-        # Ha ma még az adott időpont előtt vagyunk és ma 1-je van, akkor ma fut
-        if now.day == 1 and (now.hour, now.minute) < (hour, minute):
-            target_year, target_month = year, month
-        else:
-            if month == 12:
-                target_year, target_month = year + 1, 1
-            else:
-                target_year, target_month = year, month + 1
-
-        run_at = datetime(target_year, target_month, 1, hour, minute, tzinfo=tz)
-        sleep_seconds = max(1.0, (run_at - now).total_seconds())
-        try:
-            await asyncio.sleep(sleep_seconds)
-            await monthly_job()
-        except asyncio.CancelledError:
-            # Leállításkor kilépünk
-            break
-        except Exception as e:
-            # Ne álljon le a ciklus egy kivétel miatt
-            print(f"[Scheduler] Hiba a havi feladat futtatása közben: {e!r}")
-            # Kis várakozás, hogy ne pörögjön
-            await asyncio.sleep(5)
-
 
 ##############################################aszinkron függvények######################################################
 
@@ -774,7 +721,7 @@ async def nsfw(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=False)
 
     target = interaction.user
-    user_folder = f"/home/bence/Hentai"
+    user_folder = f"../Hentai"
 
     # Ellenőrizzük/létrehozzuk a mappát
     if not os.path.exists(user_folder):
@@ -1357,7 +1304,7 @@ send_group = app_commands.Group(name="send", description="üzenet")
 @send_group.command(name="dm")
 @app_commands.describe(text="üzenet", user="kinek küldjem?", everyone="@everyone engedélyezése")
 async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None,
-                  everyone: bool = False, random: bool = False, id: str | None = None):
+                  everyone: bool = False, id: str | None = None):
     await interaction.response.defer(ephemeral=True)
     if everyone and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send(
@@ -1401,46 +1348,6 @@ async def send_dm(interaction: discord.Interaction, text: str, user: discord.Mem
                 f"Botok száma: {bot_count}.",
                 ephemeral=True
             )
-        elif random and False:
-            if interaction.guild is None:
-                await interaction.followup.send(
-                    "A random csak szerveren használható.",
-                    ephemeral=True
-                )
-                return
-            number = 0
-            # Minden tag lekérése a szerverről
-            for members in interaction.guild.members:
-                if members.bot:
-                    continue
-                number += 1
-            members = [m for m in interaction.guild.members if not m.bot]
-
-            if not members:
-                await interaction.followup.send(
-                    "Nincs elérhető felhasználó a szerveren.",
-                    ephemeral=True
-                )
-                return
-
-            # Véletlenszerű tag kiválasztása
-            r = random.randint(0, 6)
-            m = random.randint(10, 30)
-            member = members[random.randint(0, number-1)]
-            try:
-                await (interaction.client.get_user(member.id)
-                       .send("{} külde az alábbi üzenetet: {}\n"
-                             "Ez egy random üzenet nem tudja hogy neked küldte".format(interaction.user.mention, text)))
-                await interaction.followup.send(
-                    f"Üzenet sikeresen elküldve {member.mention} részére!",
-                    ephemeral=True
-                )
-            except discord.Forbidden:
-                await interaction.followup.send(
-                    f"Nem tudtam üzenetet küldeni {member.mention} részére - "
-                    "valószínűleg letiltotta a DM-eket.",
-                    ephemeral=True
-                )
         else:
             try:
                 if user is None and id is None:
@@ -1582,6 +1489,8 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 *Üzenet parancsok:*
 • `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
+• `/send dm <üzenet> --everyone` – Privát üzenet küldése minden szerver tagjának (admin)
+• `/send server <üzenet> [csatorna]` – Üzenet küldése egy szerver csatornájára
 
 *Csatorna beállítás parancsok:*
 • `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
@@ -1595,7 +1504,8 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 HELP_MESSAGE_NSFW = """
 *NSFW parancsok*
-• `/rule34` - nsfw kép generálás (NSFWcsatornában)
+• `/rule34` - kép lekérése rule34-ről (NSFWcsatornában)
+• `/nsfw` - nsfw kép generálás (NSFWcsatornában)
 """
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")
