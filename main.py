@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 1.4.1
+# 1.4.2
 
 import asyncio
 import discord                                      # Discord bot kliens
@@ -453,59 +453,6 @@ async def admin_check(interaction: discord.Interaction) -> bool:
 
 
 
-async def monthly_job():
-    if leveldb is None:
-        await error(None,None,"A dataprogram nem fut.")
-        restart()
-    else:
-        cursor = leveldb.cursor()
-        result = 0
-        try:
-            cursor.execute('SELECT user_id, server_id FROM server_users')
-            result = cursor.fetchall()
-        except mysql.connector.Error as e:
-            await error(None,None,"Hiba a ",e)
-
-        for row in result:
-            id, server_id = row
-            try:
-                cursor.execute('UPDATE server_users SET user_xp_monthly = 0, valami1 = 0 WHERE user_id = %s AND server_id = %s',
-                    (id, server_id)
-                )
-            except mysql.connector.Error as e:
-                await error(None,None,"Hiba a ",e)
-
-async def run_monthly_at(hour: int = 0, minute: int = 0, tz = ZoneInfo("Europe/Budapest")):
-    # Várjuk meg, míg a bot készen áll
-    await client.wait_until_ready()
-    while not client.is_closed():
-        now = datetime.now(tz)
-        # Következő futási idő: a legközelebbi hónap 1-je [hour:minute]
-        year, month = now.year, now.month
-
-        # Ha ma még az adott időpont előtt vagyunk és ma 1-je van, akkor ma fut
-        if now.day == 1 and (now.hour, now.minute) < (hour, minute):
-            target_year, target_month = year, month
-        else:
-            if month == 12:
-                target_year, target_month = year + 1, 1
-            else:
-                target_year, target_month = year, month + 1
-
-        run_at = datetime(target_year, target_month, 1, hour, minute, tzinfo=tz)
-        sleep_seconds = max(1.0, (run_at - now).total_seconds())
-        try:
-            await asyncio.sleep(sleep_seconds)
-            await monthly_job()
-        except asyncio.CancelledError:
-            # Leállításkor kilépünk
-            break
-        except Exception as e:
-            # Ne álljon le a ciklus egy kivétel miatt
-            print(f"[Scheduler] Hiba a havi feladat futtatása közben: {e!r}")
-            # Kis várakozás, hogy ne pörögjön
-            await asyncio.sleep(5)
-
 
 ##############################################aszinkron függvények######################################################
 
@@ -736,8 +683,15 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
             embed.add_field(name='Meta', value=', '.join(meta), inline=False)
 
         embed.set_author(name=str(interaction.client.user.display_name), icon_url=interaction.client.user.display_avatar.url)
-        #embed.timestamp(datetime.now())
-        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://rule34.xxx/favicon.ico")
+
+        statistics = soup.find('div', {'id': 'stats'})
+        stats = statistics.find_all('li')
+        stats = [stat.text.strip() for stat in stats]
+        if 'Posted:' in stats[1]:
+            timestamp = stats[1].split('Posted:')[0]#.strip('\n')
+        embed.set_footer(text="Powered by rule34.xxx", icon_url="https://cdn.discordapp.com/attachments/1414949405051719912/"
+                                                                "1425895125921304702/Rule_34.png?ex=68e93fd1&is=68e7ee51&hm="
+                                                                "6abf547c2c9e76aaa8896cee7378c6355a3335ef682686c68ac21aa9ca8256ce&")
 
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
@@ -747,10 +701,57 @@ async def rule34(interaction: discord.Interaction, search: str | None = None, ep
     except Exception as parse_err:
         await error(None,interaction, f"Parsing hiba", parse_err)
         await interaction.followup.send("Nem sikerült feldolgozni a találatokat.", ephemeral=True)
-        with contextlib.suppress(Exception):
-            await interaction.delete_original_response()
+
+
+
+
+
+@tree.command(name="nsfw", nsfw=True)
+async def nsfw(interaction: discord.Interaction):
+    # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
+    if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
+            interaction.channel, discord.DMChannel)):
+        await interaction.response.send_message(
+            "Ezt a parancsot csak NSFW csatornában lehet használni.", ephemeral=True)
         return
 
+    # Jelezzük, hogy dolgozunk
+    await interaction.response.defer(ephemeral=False)
+
+    target = interaction.user
+    user_folder = f"../Hentai"
+
+    # Ellenőrizzük/létrehozzuk a mappát
+    if not os.path.exists(user_folder):
+        try:
+            os.makedirs(user_folder)
+        except Exception as e:
+            await interaction.followup.send("Hiba történt a mappa létrehozásakor", ephemeral=True)
+            return
+
+    # Képek listázása
+    try:
+        files = [f for f in os.listdir(user_folder)
+                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))]
+
+        if not files:
+            await interaction.followup.send("Nincs kép a mappában", ephemeral=True)
+            return
+
+        # Random kép választása
+        image_path = os.path.join(user_folder, random.choice(files))
+
+        # Kép küldése
+        await interaction.followup.send(
+            file=discord.File(image_path),
+            ephemeral=False
+        )
+
+    except Exception as e:
+        await interaction.followup.send(f"Hiba történt: {str(e)}", ephemeral=True)
+
+
+                                ###################nsfw###################
 
 # XP parancscsoport: /xp show|add|remove|set
 xp_group = app_commands.Group(name="xp", description="XP és szint műveletek")
@@ -837,7 +838,8 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_xp = amount
             new_level = level(new_xp)
             cursor.execute(
-                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, user_xp_text_monthly_add, level_text, level_monthly)'
+                'INSERT INTO server_users (user_id, server_id, user_xp_text_add, '
+                'user_xp_text_monthly_add, level_text, level_monthly)'
                 ' VALUES (%s, %s, %s, %s, %s, %s)',
                 (user.id, interaction.guild.id, new_xp, new_xp, new_level, new_level)
             )
@@ -848,7 +850,8 @@ async def xp_add(interaction: discord.Interaction, user: discord.Member, amount:
             new_level = level(int(row[0]) + int(row[1]) + amount)
             new_level_monthly = level(int(row[2]) + int(valami1) + amount)
             cursor.execute(
-                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, level_text = %s, level_monthly = %s '
+                'UPDATE server_users SET user_xp_text_add = %s, user_xp_text_monthly_add = %s, '
+                'level_text = %s, level_monthly = %s '
                 'WHERE user_id = %s AND server_id = %s',
                 (new_xp, new_xp_monthly, new_level,new_level_monthly, user.id, interaction.guild.id)
             )
@@ -992,11 +995,13 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
         if globalis:
             if monthly:
                 cursor.execute(
-                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text_monthly) AS total_xp, 0 '
+                    'FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
             else:
                 cursor.execute(  # Legjobb 10 felhasználó XP szerint adott szerveren
-                    'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
+                    'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users '
+                    'GROUP BY user_id ORDER BY total_xp DESC LIMIT 10'
                 )
         else:
             if monthly:
@@ -1059,7 +1064,8 @@ async def top_command(interaction: discord.Interaction, globalis: bool = False, 
 
 @tree.command(name="rank", description="Megjeleníti a felhasználó rangját (helyezését) az XP alapján.")
 @app_commands.describe(user="Opcionális: válassz felhasználót, akinek az adatait lekérdezed.")
-async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None, globalis: bool = False, monthly: bool = False):
+async def rank_command(interaction: discord.Interaction, user: discord.Member | None = None
+                       , globalis: bool = False, monthly: bool = False):
     if leveldb is None:
         await interaction.response.send_message(
             'Az adatbázis nem érhető el, a rang funkció ideiglenesen nem működik.',
@@ -1075,11 +1081,13 @@ async def rank_command(interaction: discord.Interaction, user: discord.Member | 
         if interaction.guild is None:
             if globalis:
                 cursor.execute(
-                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
+                        'SELECT user_id, SUM(user_xp_text) AS total_xp, 0 '
+                        'FROM server_users GROUP BY user_id ORDER BY total_xp DESC'
                 )
             else:
                 cursor.execute(
-                    'SELECT user_id, user_xp_text, 0 FROM server_users WHERE server_id = 0 ORDER BY user_xp_text DESC'
+                    'SELECT user_id, user_xp_text, 0 FROM server_users '
+                    'WHERE server_id = 0 ORDER BY user_xp_text DESC'
                 )
         else:
             if globalis:
@@ -1292,36 +1300,151 @@ async def set_level_up_channel(interaction: discord.Interaction, channel: discor
 send_group = app_commands.Group(name="send", description="üzenet")
 
 @send_group.command(name="dm")
-@app_commands.describe(text="üzenet", user="kinek küldjem?")
-async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member):
+@app_commands.describe(text="üzenet", user="kinek küldjem?", everyone="@everyone engedélyezése")
+async def send_dm(interaction: discord.Interaction, text: str, user: discord.Member | None = None,
+                  everyone: bool = False):
+    await interaction.response.defer(ephemeral=True)
+    if everyone and not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send(
+            "Csak adminisztrátorok használhatják a @everyone engedélyezését.",
+            ephemeral=True
+        )
+        return
     try:
-        # Először válaszolunk az interakcióra hogy ne időzzön ki
-        await interaction.response.defer(ephemeral=True)
 
-        # Megpróbáljuk elküldeni a DM-et
-        await user.send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+        if everyone:
+            if interaction.guild is None:
+                await interaction.followup.send(
+                    "A @everyone csak szerveren használható.",
+                    ephemeral=True
+                )
+                return
+            # Minden tag lekérése a szerverről
+            members = interaction.guild.members
 
-        # Sikeres küldés visszajelzése
-        await interaction.followup.send(
-            f"Üzenet sikeresen elküldve {user.mention} részére!",
-            ephemeral=True
-        )
+            # DM küldése minden tagnak
+            success_count = 0
+            fail_count = 0
+            bot_count = 0
+            for member in members:
+                try:
+                    if member.bot:
+                        bot_count += 1
+                        continue
+                    # Megpróbáljuk elküldeni a DM-et
+                    await (interaction.client.get_user(member.id)
+                           .send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text)))
+                    success_count += 1
+                except discord.Forbidden:
+                    fail_count += 1
 
-    except discord.Forbidden:
-        # Ha a felhasználó letiltotta a DM-eket
-        await interaction.followup.send(
-            f"Nem tudtam üzenetet küldeni {user.mention} részére - "
-            "valószínűleg letiltotta a DM-eket.",
-            ephemeral=True
-        )
+            # Visszajelzés a küldés eredményéről
+            await interaction.followup.send(
+                f"Üzenet sikeresen elküldve {success_count} felhasználónak!\n"
+                f"Nem sikerült {fail_count} felhasználónak (valószínűleg letiltották a DM-eket).\n"
+                f"Botok száma: {bot_count}.",
+                ephemeral=True
+            )
+        else:
+            try:
+                if user is None:
+                    await interaction.user.send("Ha nem adsz meg senkit akkor neked küldöm el.\n"
+                                                "Nesze itt vagy örülj. {}".format(text))
+                    await interaction.followup.send(
+                        "Nem adtál meg felhasználót, ezért neked küldtem el.",
+                        ephemeral=True)
+                    return
+                if user.bot:
+                    await interaction.followup.send(
+                        "Nem lehet üzenetet küldeni botoknak.",
+                        ephemeral=True
+                    )
+                    return
+                # Megpróbáljuk elküldeni a DM-et
+                await user.send("{} külde az alábbi üzenetet: {}".format(interaction.user.mention, text))
+
+                # Sikeres küldés visszajelzése
+                await interaction.followup.send(
+                    f"Üzenet sikeresen elküldve {user.mention} részére!",
+                    ephemeral=True
+                )
+
+            except discord.Forbidden:
+                # Ha a felhasználó letiltotta a DM-eket
+                await interaction.followup.send(
+                    f"Nem tudtam üzenetet küldeni {user.mention} részére - "
+                    "valószínűleg letiltotta a DM-eket.",
+                    ephemeral=True
+                )
 
     except Exception as e:
         # Egyéb hibák esetén
-        await error(None,
-            interaction, f"DM küldési hiba:\n"
-                    f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
-                    f"Címzett: {user} (ID: {user.id})", e
+        if everyone:
+            await error(None,
+                interaction, f"DM küldési hiba @everyone opcióval:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Szerver: {interaction.guild} (ID: {interaction.guild.id})", e
+            )
+        if random:
+            await error(None,
+                interaction, f"DM küldési hiba random opcióval:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Szerver: {interaction.guild} (ID: {interaction.guild.id})", e
+            )
+        else:
+            await error(None,
+                interaction, f"DM küldési hiba:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Címzett: {user} (ID: {user.id})", e
+            )
+        await interaction.followup.send(
+            "Váratlan hiba történt az üzenet küldése közben.",
+            ephemeral=True
         )
+
+@send_group.command(name="server")
+@app_commands.describe(text="üzenet", channel="melyik csatornába?")
+@app_commands.guild_only()
+async def send_server(interaction: discord.Interaction, text: str, channel: discord.TextChannel | None = None):
+    await interaction.response.defer(ephemeral=True)
+    if channel is None:
+        if interaction.channel is None:
+            await interaction.followup.send(
+                "Nem tudom melyik csatornába küldjem az üzenetet.",
+                ephemeral=True
+            )
+            return
+        channel = interaction.channel
+    try:
+        if not channel.permissions_for(interaction.guild.me).send_messages:
+            await interaction.followup.send(
+                f"Nem tudok üzenetet küldeni a {channel.mention} csatornába - "
+                "valószínűleg nincs jogosultságom írni oda.",
+                ephemeral=True
+            )
+            return
+        if not channel.permissions_for(interaction.user).send_messages:
+            await interaction.followup.send(
+                f"Te nem tudsz üzenetet küldeni a {channel.mention} csatornába.",
+                ephemeral=True
+            )
+            return
+        await channel.send("{} külde az alábbi üzenetet: {}".format(interaction.user.global_name, text))
+        await interaction.followup.send(
+            f"Üzenet sikeresen elküldve {channel.mention} csatornába!",
+            ephemeral=True
+        )
+    except discord.Forbidden:
+        await interaction.followup.send(
+            f"Nem tudtam üzenetet küldeni {channel.mention} csatornába - "
+            "valószínűleg nincs jogosultságom írni oda.",
+            ephemeral=True
+        )
+    except Exception as e:
+        await error(None,interaction, f"Üzenet küldési hiba:\n"
+                        f"Küldő: {interaction.user} (ID: {interaction.user.id})\n"
+                        f"Csatorna: {channel} (ID: {channel.id})", e
+            )
         await interaction.followup.send(
             "Váratlan hiba történt az üzenet küldése közben.",
             ephemeral=True
@@ -1347,6 +1470,8 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 *Üzenet parancsok:*
 • `/send dm <üzenet> <felhasználó>` – Privát üzenet küldése
+• `/send dm <üzenet> --everyone` – Privát üzenet küldése minden szerver tagjának (admin)
+• `/send server <üzenet> [csatorna]` – Üzenet küldése egy szerver csatornájára
 
 *Csatorna beállítás parancsok:*
 • `/set_welcome_channel <csatorna>` – Üdvözlő csatorna beállítása (admin)
@@ -1360,7 +1485,8 @@ HELP_MESSAGE = """**Bot Parancsok**
 
 HELP_MESSAGE_NSFW = """
 *NSFW parancsok*
-• `/rule34` - nsfw kép generálás (NSFWcsatornában)
+• `/rule34` - kép lekérése rule34-ről (NSFWcsatornában)
+• `/nsfw` - nsfw kép generálás (NSFWcsatornában)
 """
 
 @tree.command(name="help", description="Parancs súgó megjelenítése")

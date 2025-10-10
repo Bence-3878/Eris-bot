@@ -54,6 +54,7 @@ Csatorna beállítás parancsok:
 
 NSFW parancsok:
 - /rule34 [keresés] – NSFW kép keresése vagy véletlenszerű kép (csak NSFW csatornában)
+- /nsfw – NSFW kép küldése (csak NSFW csatornában)
 
 Főadmin parancsok:
 - /poweroff – Bot leállítás (bot admin)
