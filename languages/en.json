@@ -1,0 +1,42 @@
+{
+  "ping":
+    {
+        "description": "Responds with the bot's latency and status.",
+        "usage": "ping",
+        "examples": ["ping"],
+        "responses": {
+          "Pong!": "Pong! 🏓",
+          "Bot Latency": "Bot Latency: {} ms",
+          "API Latency": "API Latency: {} ms"
+        }
+    },
+    "stats": {
+        "description": "Displays the bot's statistics.",
+        "usage": "stats",
+        "examples": ["stats"],
+        "responses": {
+          "Stats for": "Stats for",
+          "Servers": "Servers",
+          "Users": "Users",
+          "Channels": "Channels",
+          "Uptime": "Uptime",
+          "Memory Usage": "Memory Usage",
+          "CPU Usage": "CPU Usage",
+          "Library": "Library",
+          "Version": "Version",
+          "Developer": "Developer"
+        }
+    },
+    "ban": {
+        "description": "Bans a user from the server.",
+        "usage": "ban <@user> [reason]",
+        "examples": ["ban @User#1234 Spamming", "ban @User#1234"],
+        "responses": {
+          "User Banned": "User Banned",
+          "You have been banned from": "You have been banned from",
+          "Reason": "Reason",
+          "No reason provided": "No reason provided",
+          "I cannot ban this user. They might have a higher role than me or I don't have the required permissions.": "I cannot ban this user. They might have a higher role than me or I don't have the required permissions."
+        }
+    }
+}
