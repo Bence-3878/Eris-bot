@@ -37,7 +37,7 @@ def create_ping_command_guild(client):
     
     # Lokalizált leírások hozzáadása
     ping.description_localizations = {
-        Locale.hungarian: language_manager.get_text("hu","ping",),
+        Locale.hungarian: "Bot válaszideje",
         Locale.american_english: "Bot response time",
         Locale.british_english: "Bot response time"
     }

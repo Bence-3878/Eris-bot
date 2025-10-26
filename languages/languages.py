@@ -23,7 +23,7 @@ class LanguageManager:
             return
 
         for lang_file in self.lang_dir.glob("*.json"):
-            lang_code = lang_file.stem  # pl. "en-us", "hu"
+            lang_code = lang_file.stem  # pl. "en", "hu"
             try:
                 with open(lang_file, "r", encoding="utf-8") as f:
                     self.languages[lang_code] = json.load(f)
@@ -95,8 +95,8 @@ class LanguageManager:
         # Locale mapping (Discord locale -> bot nyelv kód)
         locale_mapping = {
             "hu": "hu",
-            "en-US": "en",
-            "en-GB": "en",
+            "en-US": "en-us",
+            "en-GB": "en-gb",
         }
         
         # Ha van mapping, használjuk
@@ -107,7 +107,7 @@ class LanguageManager:
             return lang_code
         
         # Alapértelmezett: angol
-        return "en"
+        return "en-us"
 
 
 # Globális language manager példány

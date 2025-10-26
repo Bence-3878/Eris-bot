@@ -2,21 +2,22 @@
 # commands/__init__.py
 # Parancsok regisztrációja
 
-from commands.ping import register_ping_command, register_ping_command_dm
+from commands.info.ping import register_ping_command, register_ping_command_dm
+from commands.help import register_help_command, register_help_command_dm
 
 
 # Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
     "ping": register_ping_command,
     # "stats": register_stats_command,  # Később hozzáadható
-    # "help": register_help_command,
+    "help": register_help_command,
 }
 
 # DM parancsok registry
 DM_COMMANDS = {
     "ping": register_ping_command_dm,
     # "stats": register_stats_command_dm,
-    # "help": register_help_command_dm,
+    "help": register_help_command_dm,
 }
 
 
