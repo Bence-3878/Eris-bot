@@ -1,9 +1,10 @@
 {
-  "ping":
-    {
-        "description": "Responds with the bot's latency and status.",
+  "ping": {
+        "description": "Bot response time",
         "usage": "ping",
-        "examples": ["ping"],
+        "examples": [
+          "ping"
+        ],
         "responses": {
           "Pong!": "Pong! 🏓",
           "Bot Latency": "Bot Latency: {} ms",

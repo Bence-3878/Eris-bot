@@ -1,6 +1,6 @@
 {
   "ping": {
-    "description": "Válaszol a bot késleltetésére és állapotára.",
+    "description": "Bot válaszideje",
     "usage": "ping",
     "examples": ["ping"],
     "responses": {

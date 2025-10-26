@@ -1,36 +1,46 @@
-import discord
-from discord import app_commands
-
-
-
-
 # -*- coding: utf-8 -*-
 # commands/ping.py
 # Ping parancs
 
 import discord
-from discord import app_commands
+from discord import app_commands, Locale
+from languages.languages import language_manager
 
 
 def create_ping_command_guild(client):
     """
     Ping parancs guild-ekhez (szerverekhez)
-    
     Returns:
         app_commands.Command: A parancs objektum
     """
-    
-    @app_commands.command(name="ping", description="Bot válaszideje")
-    @app_commands.allowed_installs(guilds=True, users=False)  # CSAK guild-ekben
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)  # CSAK guild-ekben
+    @app_commands.command(
+        name="ping",
+        description="Bot response time"
+    )
+    @app_commands.describe()  # Lokalizációhoz
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def ping(interaction: discord.Interaction):
         """Válaszidő mérése szervereken"""
+        # Nyelv meghatározása a szerver alapján
+        lang = language_manager.get_language_for_context(interaction)
+        
         latency_ms = round(client.latency * 1000)
         
+        # Fordítások lekérése
+        pong_text = language_manager.get_text(lang, "ping", "Pong!")
+        bot_latency_text = language_manager.get_text(lang, "ping", "Bot Latency", latency_ms)
+        
         await interaction.response.send_message(
-            f"🏓 Pong a(z) **{interaction.guild.name}** szerveren!\n"
-            f"⏱️ Válaszidő: **{latency_ms} ms**"
+            f"{pong_text}\n{bot_latency_text}"
         )
+    
+    # Lokalizált leírások hozzáadása
+    ping.description_localizations = {
+        Locale.hungarian: language_manager.get_text("hu","ping",),
+        Locale.american_english: "Bot response time",
+        Locale.british_english: "Bot response time"
+    }
     
     return ping
 
@@ -43,18 +53,30 @@ def create_ping_command_dm(client):
         app_commands.Command: A parancs objektum
     """
     
-    @app_commands.command(name="ping", description="Bot válaszideje")
+    @app_commands.command(name="ping", description="Bot response time")
     @app_commands.allowed_installs(guilds=False, users=True)  # CSAK user install (DM)
     @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)  # CSAK DM-ekben
     async def ping(interaction: discord.Interaction):
-        """Válaszidő mérése DM-ben"""
+        """Válaszidő mérése DM-ben (mindig angolul)"""
+        # DM esetén mindig angol
+        lang = "en"
+        
         latency_ms = round(client.latency * 1000)
         
+        # Fordítások lekérése (angol)
+        pong_text = language_manager.get_text(lang, "ping", "Pong!")
+        bot_latency_text = language_manager.get_text(lang, "ping", "Bot Latency", latency_ms)
+        
         await interaction.response.send_message(
-            f"🏓 Pong **privát üzenetben**!\n"
-            f"⏱️ Válaszidő: **{latency_ms} ms**\n\n"
-            f"💡 *Ez a parancs csak privát üzenetekben érhető el.*"
+            f"{pong_text}\n{bot_latency_text}"
         )
+    
+    # Lokalizált leírások hozzáadása
+    ping.description_localizations = {
+        Locale.hungarian: "Bot válaszideje",
+        Locale.american_english: "Bot response time",
+        Locale.british_english: "Bot response time"
+    }
     
     return ping
 
@@ -70,11 +92,18 @@ def register_ping_command(tree, client, guild=None):
     """
     ping_cmd = create_ping_command_guild(client)
     
+    # Guild-specifikus description beállítása
     if guild:
-        # Guild-specifikus regisztráció
+        # Szerver nyelve alapján description módosítás
+        guild_locale = str(guild.preferred_locale)
+        
+        if guild_locale == "hu":
+            ping_cmd.description = "Bot válaszideje"
+        else:
+            ping_cmd.description = "Bot response time"
+        
         tree.add_command(ping_cmd, guild=guild)
     else:
-        # Globális regisztráció (de ez nem lesz használva)
         tree.add_command(ping_cmd)
     
     return ping_cmd
