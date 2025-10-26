@@ -10,3 +10,4 @@ xp.log
 venv
 .venv1
 nohup.out
+guild_settings.json
