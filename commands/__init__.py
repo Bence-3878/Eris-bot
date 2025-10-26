@@ -2,14 +2,21 @@
 # commands/__init__.py
 # Parancsok regisztrációja
 
-from commands.ping import register_ping_command
+from commands.ping import register_ping_command, register_ping_command_dm
 
 
-# Elérhető parancsok registry
+# Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
     "ping": register_ping_command,
     # "stats": register_stats_command,  # Később hozzáadható
     # "help": register_help_command,
+}
+
+# DM parancsok registry
+DM_COMMANDS = {
+    "ping": register_ping_command_dm,
+    # "stats": register_stats_command_dm,
+    # "help": register_help_command_dm,
 }
 
 
@@ -38,25 +45,35 @@ def register_commands_for_guild(tree, client, guild, enabled_commands):
     return registered_count
 
 
+def register_dm_commands(tree, client):
+    """
+    Globális parancsok regisztrálása (CSAK DM támogatáshoz)
+    
+    Args:
+        tree: CommandTree példány
+        client: Discord Client példány
+    
+    Returns:
+        int: Regisztrált parancsok száma
+    """
+    registered_count = 0
+    
+    # DM parancsok regisztrálása globálisan (de csak DM-ben működnek)
+    for cmd_name, register_func in DM_COMMANDS.items():
+        try:
+            register_func(tree, client)
+            registered_count += 1
+        except Exception as e:
+            print(f"  ✗ Hiba a '{cmd_name}' DM regisztrálásakor: {e}")
+    
+    return registered_count
+
+
 def get_available_commands():
     """Összes elérhető parancs nevének listája"""
     return list(AVAILABLE_COMMANDS.keys())
 
 
-def register_commands(tree, client):
-    """
-    Összes parancs regisztrálása
-
-    Args:
-        tree: Discord CommandTree példány
-        client: Discord Client példány
-    """
-    # Parancsok regisztrálása és a visszatérési érték használata
-    ping_cmd = register_ping_command(tree, client)
-    print(f"✓ Parancs regisztrálva: {ping_cmd.name if ping_cmd else 'ismeretlen'}")
-
-    # Debug: Ellenőrizzük, hogy tényleg benne van-e a tree-ben
-    all_commands = tree.get_commands()
-    print(f"🔍 Tree-ben lévő parancsok: {[cmd.name for cmd in all_commands]}")
-
-    # További parancsok regisztrálása itt...
+def get_dm_commands():
+    """DM-ben elérhető parancsok listája"""
+    return list(DM_COMMANDS.keys())

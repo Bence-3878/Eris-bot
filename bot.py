@@ -5,7 +5,7 @@
 import discord
 import logging
 from config import config
-from commands import register_commands_for_guild, get_available_commands
+from commands import register_commands_for_guild, register_dm_commands, get_available_commands, get_dm_commands
 from guild_settings import guild_settings
 
 
@@ -34,18 +34,30 @@ class BotInstance:
             print(f"📦 Discord.py verzió: {discord.__version__}")
             print(f"{'=' * 60}\n")
 
-            print(f"📚 Elérhető parancsok: {', '.join(get_available_commands())}\n")
-            print(f"🔄 Parancsok szinkronizálása szerverenként...\n")
+            print(f"📚 Elérhető parancsok (szerverekhez): {', '.join(get_available_commands())}")
+            print(f"💬 DM parancsok: {', '.join(get_dm_commands())}\n")
+            
+            # 1. Globális DM parancsok regisztrálása (CSAK DM-ekhez)
+            print(f"🌍 Globális DM parancsok regisztrálása (CSAK privát üzenetekhez)...\n")
+            try:
+                dm_registered = register_dm_commands(self.tree, self.client)
+                global_synced = await self.tree.sync()
+                print(f"   ✓ {len(global_synced)} DM parancs szinkronizálva: {[c.name for c in global_synced]}")
+                print(f"   💬 Ezek a parancsok CSAK privát üzenetekben működnek!\n")
+            except Exception as e:
+                print(f"   ✗ Globális sync hiba: {e}\n")
+            
+            # 2. Szerverenként regisztráljuk a parancsokat
+            print(f"🔄 Szerver parancsok szinkronizálása (CSAK szervereken működnek)...\n")
 
-            # Szerverenként regisztráljuk a parancsokat
             for guild in self.client.guilds:
                 try:
                     # Szerver engedélyezett parancsainak lekérése
                     enabled_commands = self.guild_settings.get_guild_commands(guild.id)
-                    
+                
                     print(f"📍 {guild.name} (ID: {guild.id})")
                     print(f"   Engedélyezett parancsok: {', '.join(enabled_commands)}")
-                    
+                
                     # Parancsok regisztrálása erre a szerverre
                     registered = register_commands_for_guild(
                         self.tree, 
@@ -53,37 +65,39 @@ class BotInstance:
                         guild, 
                         enabled_commands
                     )
-                    
+                
                     # Szinkronizálás
                     synced = await self.tree.sync(guild=guild)
-                    
+                
                     if synced:
                         print(f"   ✓ {len(synced)} parancs szinkronizálva: {[c.name for c in synced]}")
                     else:
                         print(f"   ⚠️ Nem sikerült szinkronizálni")
-                    
+                
                 except Exception as e:
                     print(f"   ✗ Hiba: {e}")
-                
+            
                 print()  # Üres sor a szeparáláshoz
         
             print(f"{'=' * 60}")
             print(f"✅ Bot aktív: {self.client.user}")
+            print(f"🏢 Szerver parancsok: CSAK szervereken")
+            print(f"💬 DM parancsok: CSAK privát üzenetekben")
             print(f"{'=' * 60}\n")
         
         @self.client.event
         async def on_guild_join(guild):
             """Amikor a bot csatlakozik egy új szerverhez"""
             print(f"\n🆕 Új szerver: {guild.name} (ID: {guild.id})")
-            
+        
             # Alapértelmezett parancsok hozzáadása
             default_commands = self.guild_settings.get_guild_commands(guild.id)
             print(f"   Alapértelmezett parancsok: {', '.join(default_commands)}")
-            
+        
             # Parancsok regisztrálása és szinkronizálása
             register_commands_for_guild(self.tree, self.client, guild, default_commands)
             await self.tree.sync(guild=guild)
-            
+        
             print(f"   ✓ Parancsok szinkronizálva\n")
 
     def run(self):
