@@ -15,10 +15,11 @@ class GuildSettings:
     
     def _load_settings(self):
         """Beállítások betöltése fájlból"""
+        global default_settings
         if not self.settings_file.exists():
             # Alapértelmezett beállítások létrehozása
             default_settings = {
-                "default_commands": ["ping"],  # Alapértelmezett parancsok minden új szerveren
+                "default_commands": ["ping","help"],  # Alapértelmezett parancsok minden új szerveren
                 "guilds": {}
             }
             self._save_settings(default_settings)
@@ -29,7 +30,7 @@ class GuildSettings:
                 return json.load(f)
         except Exception as e:
             print(f"⚠️ Hiba a beállítások betöltésekor: {e}")
-            return {"default_commands": ["ping"], "guilds": {}}
+            return default_settings
     
     def _save_settings(self, settings=None):
         """Beállítások mentése fájlba"""
