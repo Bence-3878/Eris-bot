@@ -11,3 +11,10 @@ venv
 .venv1
 nohup.out
 guild_settings.json
+language/__pycache__/*
+language/__pycache__
+commands/__pycache__/*
+commands/__pycache__
+__pycache__/*
+__pycache__
+.pyc
