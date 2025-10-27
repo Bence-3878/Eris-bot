@@ -93,6 +93,12 @@ class LanguageManager:
             return self.languages[lang_code][self.get_categories(lang_code, command)][command]["examples"]
         except KeyError:
             return "No examples available"
+
+    def get_category_name(self, lang_code, category):
+        return self.languages[lang_code][category]["name"]
+
+    def get_category_description(self, lang_code, category):
+        return self.languages[lang_code][category]["description"]
         
     def get_all_available_languages(self):
         """

@@ -1,43 +1,44 @@
 {
-  "ping": {
-    "description": "Bot válaszideje",
-    "usage": "ping",
-    "examples": ["ping"],
-    "responses": {
-      "Pong!": "Pong! 🏓",
-      "Bot Latency": "Bot Válaszidő: {} ms",
-      "API Latency": "API válaszidő: {} ms"
+  "info": {
+    "name": "Információ",
+    "description": "Információs parancsok",
+    "ping": {
+      "description": "Bot válaszideje",
+      "usage": "ping",
+      "examples": [
+        "ping"
+      ],
+      "responses": {
+        "Pong!": "Pong! 🏓",
+        "Bot Latency": "Bot Válaszidő: {} ms",
+        "API Latency": "API válaszidő: {} ms"
+      }
+    },
+    "help": {
+      "description": "Segítség",
+      "usage": "help [parancs]",
+      "examples": [],
+      "responses":{
+       "title": "Lista a parancs kategoriágról"
+      }
     }
   },
-    "stats": {
-        "description": "Megjeleníti a bot statisztikáit.",
-        "usage": "stats",
-        "examples": ["stats"],
-        "responses": {
-          "Stats for": "Statisztikák ideiglenes neve",
-          "Servers": "Szerverek",
-          "Users": "Felhasználók",
-          "Channels": "Csatornák",
-          "Uptime": "Üzemidő",
-          "Memory Usage": "Memóriahasználat",
-          "CPU Usage": "CPU használat",
-          "Library": "Könyvtár",
-          "Version": "Verzió",
-          "Developer": "Fejlesztő"
+  "moderation": {
+    "name": "Moderáció",
+    "description": "Moderációs parancsok",
+    "ban": {
+      "description": "Kitilt egy felhasználót a szerverről.",
+      "usage": "ban <@felhasználó> [ok]",
+      "examples": [
+        "ban @User#1234 Spamelés",
+        "ban @User#1234"
+      ],
+      "responses": {
+        "User Banned": "Felhasználó kitiltva",
+        "You have been banned from": "Kitiltottak innen:",
+        "Reason": "Ok",
+        "No reason provided": "Nincs megadva ok"
         }
-    },
-  "ban": {
-    "description": "Kitilt egy felhasználót a szerverről.",
-    "usage": "ban <@felhasználó> [ok]",
-    "examples": ["ban @User#1234 Spamelés", "ban @User#1234"],
-    "responses": {
-      "User Banned": "Felhasználó kitiltva",
-      "You have been banned from": "Kitiltottak innen:",
-      "Reason": "Ok",
-      "No reason provided": "Nincs megadva ok",
-      "I cannot ban this user. They might have a higher role than me or I don't have the required permissions.": "Nem tudom kitiltani ezt a felhasználót. Lehet, hogy magasabb rangja van nálam, vagy nincsenek meg a szükséges engedélyek."
     }
   }
-
-
 }
