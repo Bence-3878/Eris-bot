@@ -49,7 +49,7 @@ class LanguageManager:
             lang_code = self.default_language
 
         try:
-            text = self.languages[lang_code][command]["responses"][key]
+            text = self.languages[lang_code][self.get_categories(lang_code, command)][command]["responses"][key]
             if args:
                 return text.format(*args)
             return text
@@ -57,7 +57,7 @@ class LanguageManager:
             print(f"⚠️ Hiányzó fordítás: {lang_code}/{command}/{key}")
             # Fallback az angol nyelvre
             try:
-                text = self.languages[self.default_language][command]["responses"][key]
+                text = self.languages[self.default_language][self.get_categories(lang_code, command)][command]["responses"][key]
                 if args:
                     return text.format(*args)
                 return text
@@ -70,9 +70,68 @@ class LanguageManager:
             lang_code = self.default_language
 
         try:
-            return self.languages[lang_code][command]["description"]
+            return self.languages[lang_code][self.get_categories(lang_code, command)][command]["description"]
         except KeyError:
             return "No description available"
+        
+    def get_command_usage(self, lang_code, command):
+        """Parancs használi útmutató"""
+        if lang_code not in self.languages:
+            lang_code = self.default_language
+        
+        try:
+            return self.languages[lang_code][self.get_categories(lang_code, command)][command]["usage"]
+        except KeyError:
+            return "No usage available"
+        
+    def get_command_examples(self, lang_code, command):
+        """Parancs használi útmutató"""
+        if lang_code not in self.languages:
+            lang_code = self.default_language
+        
+        try:
+            return self.languages[lang_code][self.get_categories(lang_code, command)][command]["examples"]
+        except KeyError:
+            return "No examples available"
+        
+    def get_all_available_languages(self):
+        """
+        Az összes elérhető nyelv kódjának lekérése
+
+        Returns:
+            list: Nyelv kódok listája (pl. ["en", "hu"])
+        """
+        return list(self.languages.keys())
+
+    def get_all_categories(self, lang_code):
+        """
+        Az adott nyelvhez tartozó összes parancs kategória lekérése
+
+        Args:
+            lang_code (str): A nyelv kódja (pl. "en", "hu") amihez a kategóriákat lekérjük
+
+        Returns:
+            list: Kategória nevek listája (pl. ["info", "moderation"])
+
+        Példák:
+            >>> lang_manager = LanguageManager()
+            >>> lang_manager.get_all_categories("hu")
+            ["info", "moderation"]
+        """
+
+        return list(self.languages[lang_code].keys())
+
+    def get_all_commands(self, lang_code, category):
+        return list(self.languages[lang_code][category].keys())[2:]
+
+    def get_categories(self, lang_code, command):
+        categories = self.get_all_categories(lang_code)
+
+        for category in categories:
+            if command in self.get_all_commands(lang_code, category):
+                return category
+
+        return None
 
     def get_language_for_context(self, interaction):
         """
