@@ -5,7 +5,7 @@
 import discord
 import logging
 from config import config
-from commands import register_commands_for_guild, register_dm_commands, get_available_commands, get_dm_commands
+from commands import get_available_commands, get_dm_commands, register_commands_for_guild, register_dm_commands
 from guild_settings import guild_settings
 
 
