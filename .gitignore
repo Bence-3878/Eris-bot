@@ -10,7 +10,7 @@ xp.log
 venv
 .venv1
 nohup.out
-guild_settings.json
+guild_settings/guild_settings.json
 language/__pycache__/*
 language/__pycache__
 commands/__pycache__/*

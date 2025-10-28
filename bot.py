@@ -6,7 +6,7 @@ import discord
 import logging
 from config import config
 from commands import get_available_commands, get_dm_commands, register_commands_for_guild_info, register_dm_commands_info
-from guild_settings import guild_settings
+from guild_settings.guild_settings import guild_settings
 
 
 class BotInstance:

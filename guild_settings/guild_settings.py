@@ -67,7 +67,7 @@ class GuildSettings:
         
         Args:
             guild_id: A szerver ID-ja
-            commands: Parancsok listája (pl. ["ping", "stats"])
+            commands: Parancsok listája (pl. ["ping"])
         """
         guild_id = str(guild_id)
         
@@ -103,7 +103,7 @@ class GuildSettings:
     
     def get_all_available_commands(self):
         """Összes elérhető parancs listája"""
-        return ["ping", "stats", "help"]  # Bővíthető ahogy jönnek az új parancsok
+        return ["ping", "help"]  # Bővíthető ahogy jönnek az új parancsok
 
 
 # Globális példány
