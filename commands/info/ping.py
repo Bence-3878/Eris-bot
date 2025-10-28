@@ -22,18 +22,9 @@ def create_ping_command_guild(client):
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def ping(interaction: discord.Interaction):
         """Válaszidő mérése szervereken"""
+
         # Nyelv meghatározása a szerver alapján
-        lang = language_manager.get_language_for_context(interaction)
-        
-        latency_ms = round(client.latency * 1000)
-        
-        # Fordítások lekérése
-        pong_text = language_manager.get_text(lang, "ping", "Pong!")
-        bot_latency_text = language_manager.get_text(lang, "ping", "Bot Latency", latency_ms)
-        
-        await interaction.response.send_message(
-            f"{pong_text}\n{bot_latency_text}"
-        )
+        await ping_logic(client, interaction, language_manager.get_language_for_context(interaction))
     
     # Lokalizált leírások hozzáadása
     ping.description_localizations = {
@@ -59,17 +50,7 @@ def create_ping_command_dm(client):
     async def ping(interaction: discord.Interaction):
         """Válaszidő mérése DM-ben (mindig angolul)"""
         # DM esetén mindig angol
-        lang = "en"
-        
-        latency_ms = round(client.latency * 1000)
-        
-        # Fordítások lekérése (angol)
-        pong_text = language_manager.get_text(lang, "ping", "Pong!")
-        bot_latency_text = language_manager.get_text(lang, "ping", "Bot Latency", latency_ms)
-        
-        await interaction.response.send_message(
-            f"{pong_text}\n{bot_latency_text}"
-        )
+        await ping_logic(client, interaction, "en")
     
     # Lokalizált leírások hozzáadása
     ping.description_localizations = {
@@ -79,6 +60,17 @@ def create_ping_command_dm(client):
     }
     
     return ping
+
+async def ping_logic(client, interaction: discord.Interaction, lang_code: str):
+    latency_ms = round(client.latency * 1000)
+
+    # Fordítások lekérése
+    pong_text = language_manager.get_text(lang_code, "ping", "Pong!")
+    bot_latency_text = language_manager.get_text(lang_code, "ping", "Bot Latency", latency_ms)
+
+    await interaction.response.send_message(
+        f"{pong_text}\n{bot_latency_text}"
+    )
 
 
 def register_ping_command(tree, client, guild=None):
