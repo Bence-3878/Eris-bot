@@ -55,13 +55,83 @@ def create_help_command_guild(client):
                 )
                 command_list = language_manager.get_all_commands(lang, category)
 
+                # Create new view with back button
+                category_view = discord.ui.View()
+                
                 for command in command_list:
                     category_embed.add_field(
                         name=command,
                         value=language_manager.get_command_description(lang, command),
                         inline=False
                     )
-                await interaction.response.edit_message(embed=category_embed)
+
+                    # Add button for each command
+                    command_button = discord.ui.Button(
+                        label=command,
+                        style=discord.ButtonStyle.secondary,
+                        custom_id=f"command_{category}_{command}"
+                    )
+
+                    async def command_callback(cmd_interaction: discord.Interaction):
+                        cmd = cmd_interaction.data["custom_id"].split("_")[2]
+                        cat = cmd_interaction.data["custom_id"].split("_")[1]
+
+                        command_embed = discord.Embed(
+                            title=cmd,
+                            description=language_manager.get_command_description(lang, cmd)
+                        )
+
+                        # Add usage information
+                        command_embed.add_field(
+                            name="Usage",
+                            value=language_manager.get_command_usage(lang, cmd),
+                            inline=False
+                        )
+
+                        # Add examples if available
+                        examples = language_manager.get_command_examples(lang, cmd)
+                        if examples:
+                            command_embed.add_field(
+                                name="Examples",
+                                value="\n".join(examples),
+                                inline=False
+                            )
+
+                        # Create view with back button to category
+                        command_view = discord.ui.View()
+                        command_back = discord.ui.Button(
+                            label=language_manager.get_text(lang, "help", "back"),
+                            style=discord.ButtonStyle.secondary,
+                            custom_id=f"help_{cat}"
+                        )
+
+                        async def command_back_callback(back_int: discord.Interaction):
+                            await button_callback(back_int)
+
+                        command_back.callback = command_back_callback
+                        command_view.add_item(command_back)
+
+                        await cmd_interaction.response.edit_message(
+                            embed=command_embed,
+                            view=command_view
+                        )
+
+                    command_button.callback = command_callback
+                    category_view.add_item(command_button)
+
+                back_button = discord.ui.Button(
+                    label=language_manager.get_text(lang, "help", "back"),
+                    style=discord.ButtonStyle.secondary,
+                    custom_id="help_back"
+                )
+
+                async def back_callback(back_interaction: discord.Interaction):
+                    await back_interaction.response.edit_message(embed=embed, view=view)
+
+                back_button.callback = back_callback
+                category_view.add_item(back_button)
+
+                await interaction.response.edit_message(embed=category_embed, view=category_view)
 
             button.callback = button_callback
             view.add_item(button)

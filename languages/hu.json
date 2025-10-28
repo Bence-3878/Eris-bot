@@ -19,7 +19,8 @@
       "usage": "help [parancs]",
       "examples": [],
       "responses":{
-       "title": "Lista a parancs kategoriágról"
+        "title": "Lista a parancs kategoriágról",
+        "back": "Vissza"
       }
     }
   },
