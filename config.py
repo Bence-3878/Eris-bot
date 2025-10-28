@@ -26,14 +26,22 @@ class Config:
         """Környezeti változók betöltése"""
         if not Path('.env').is_file():
             print("Error: .env file not found!")
-            print("Please create a .env file with your bot token (DISCORD_TOKEN=your_token)")
+            print("No .env file found. Creating one...")
+            with open('.env', 'w') as f:
+                f.write('DISCORD_TOKEN=your_token')
+            print("Created .env file. Please edit it with your bot token.")
             raise SystemExit
+
         
         load_dotenv()
         self.token = os.getenv('DISCORD_TOKEN')
         
         if not self.token:
             raise RuntimeError("DISCORD_TOKEN nincs beállítva a környezetben (.env).")
+
+        if self.token == "your_token":
+            print("Please edit it with your bot token.")
+            raise SystemExit
     
     def _setup_logging(self):
         """Naplózás beállítása"""

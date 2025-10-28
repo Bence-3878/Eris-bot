@@ -102,11 +102,15 @@ class BotInstance:
 
     def run(self):
         """Bot indítása"""
-        self.client.run(
-            self.token,
-            log_handler=self.handler,
-            log_level=logging.DEBUG
-        )
+        try:
+            self.client.run(
+                self.token,
+                log_handler=self.handler,
+                log_level=logging.DEBUG
+            )
+        except Exception as e:
+            print(e)
+
 
 
 # Bot példány létrehozása
