@@ -3,24 +3,33 @@
 # hiba jelentés
 
 import discord
-from discord import app_commands
-from discord.ext import commands
 from config import config, logger, client
 import contextlib
+from typing import Any
 
 
+async def error(obj: Any = None, string: str | None = None, exception: Any = None):
 
-async def error(message: discord.Message | None = None, interaction: discord.Interaction | None = None,
-                string: str | None = None , exception: Exception = None):
+    message = None
+    interaction = None
+    # guild = None
+    if isinstance(obj, discord.Message):
+        message = obj
+    if isinstance(obj, discord.Interaction):
+        interaction = obj
+    # if isinstance(obj, discord.Guild):
+    #    guild = obj
 
-
+    error_msg = ""
     error_channel = config.error_channel
     try:
         channel = client.get_channel(error_channel)
         if channel is None:
             with contextlib.suppress(Exception):
                 channel = await client.fetch_channel(error_channel)
-        error_msg = ""
+        
+
+
         if message is not None:
             guild_name = message.guild.name if message.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{message.channel.name}" if (getattr(message, "channel", None)
@@ -29,6 +38,8 @@ async def error(message: discord.Message | None = None, interaction: discord.Int
             channel_mention = getattr(getattr(message, "channel", None), "mention", "#ismeretlen-csatorna")
             error_msg +=f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"
             error_msg += f"Küldő: {message.author.mention} (ID: {message.author.id}) (name: {message.author.name})\n"
+
+
         if interaction is not None:
             guild_name = interaction.guild.name if interaction.guild else "DM/Ismeretlen szerver"
             channel_name = f"#{interaction.channel.name}" if (getattr(interaction, "channel", None)
@@ -38,6 +49,8 @@ async def error(message: discord.Message | None = None, interaction: discord.Int
             error_msg += f"Parancs: {getattr(getattr(interaction, 'command', None), 'name', 'ismeretlen')}\n"
             error_msg += f"Hely: {guild_name} | {channel_name} | {channel_mention}\n"
             error_msg += f"Küldő: {interaction.user.mention} (ID: {interaction.user.id}) (name: {interaction.user.name})\n"
+
+
         if exception is not None:
             if hasattr(exception, "msg"):
                 error_msg += f"Adatbázis hiba: {exception.msg}\n"
@@ -70,5 +83,9 @@ async def error(message: discord.Message | None = None, interaction: discord.Int
         with contextlib.suppress(Exception):
             await channel.send(error_msg)
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error: {e}\n"
+                     f"Error msg: {error_msg}"
+                     f"Exception: {exception}"
+                     f"Object: {any}"
+                     f"String: {string}")
 
