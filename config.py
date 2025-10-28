@@ -94,4 +94,5 @@ token = config.token
 handler = config.handler
 logger = config.logger
 sess = config.sess
+error_channel = 1432687370339352659
 
