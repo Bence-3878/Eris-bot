@@ -5,7 +5,7 @@
 import discord
 import logging
 from config import config
-from commands import get_available_commands, get_dm_commands, register_commands_for_guild, register_dm_commands
+from commands import get_available_commands, get_dm_commands, register_commands_for_guild_info, register_dm_commands_info
 from guild_settings import guild_settings
 
 
@@ -40,7 +40,7 @@ class BotInstance:
             # 1. Globális DM parancsok regisztrálása (CSAK DM-ekhez)
             print(f"🌍 Globális DM parancsok regisztrálása (CSAK privát üzenetekhez)...\n")
             try:
-                dm_registered = register_dm_commands(self.tree, self.client)
+                dm_registered = register_dm_commands_info(self.tree, self.client)
                 global_synced = await self.tree.sync()
                 print(f"   ✓ {len(global_synced)} DM parancs szinkronizálva: {[c.name for c in global_synced]}")
                 print(f"   💬 Ezek a parancsok CSAK privát üzenetekben működnek!\n")
@@ -59,7 +59,7 @@ class BotInstance:
                     print(f"   Engedélyezett parancsok: {', '.join(enabled_commands)}")
                 
                     # Parancsok regisztrálása erre a szerverre
-                    registered = register_commands_for_guild(
+                    registered = register_commands_for_guild_info(
                         self.tree, 
                         self.client, 
                         guild, 
@@ -95,7 +95,7 @@ class BotInstance:
             print(f"   Alapértelmezett parancsok: {', '.join(default_commands)}")
         
             # Parancsok regisztrálása és szinkronizálása
-            register_commands_for_guild(self.tree, self.client, guild, default_commands)
+            register_commands_for_guild_info(self.tree, self.client, guild, default_commands)
             await self.tree.sync(guild=guild)
         
             print(f"   ✓ Parancsok szinkronizálva\n")

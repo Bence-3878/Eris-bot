@@ -19,7 +19,7 @@ DM_COMMANDS = {
     "help": register_help_command_dm,
 }
 
-def register_commands_for_guild(tree, client, guild, enabled_commands):
+def register_commands_for_guild_info(tree, client, guild, enabled_commands):
     """
     Parancsok regisztrálása egy adott szerverre
 
@@ -44,7 +44,7 @@ def register_commands_for_guild(tree, client, guild, enabled_commands):
     return registered_count
 
 
-def register_dm_commands(tree, client):
+def register_dm_commands_info(tree, client):
     """
     Globális parancsok regisztrálása (CSAK DM támogatáshoz)
 
