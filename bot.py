@@ -5,7 +5,8 @@
 import discord
 import logging
 from config import config
-from commands import get_available_commands, get_dm_commands, register_commands_for_guild_info, register_dm_commands_info
+from commands import get_all_available_commands as get_available_commands, get_all_dm_commands as get_dm_commands, \
+    register_dm_commands_info, register_all_commands
 from guild_settings.guild_settings import guild_settings
 
 
@@ -59,7 +60,7 @@ class BotInstance:
                     print(f"   Engedélyezett parancsok: {', '.join(enabled_commands)}")
                 
                     # Parancsok regisztrálása erre a szerverre
-                    registered = register_commands_for_guild_info(
+                    registered = register_all_commands(
                         self.tree, 
                         self.client, 
                         guild, 
@@ -95,7 +96,7 @@ class BotInstance:
             print(f"   Alapértelmezett parancsok: {', '.join(default_commands)}")
         
             # Parancsok regisztrálása és szinkronizálása
-            register_commands_for_guild_info(self.tree, self.client, guild, default_commands)
+            register_all_commands(self.tree, self.client, guild, default_commands)
             await self.tree.sync(guild=guild)
         
             print(f"   ✓ Parancsok szinkronizálva\n")
