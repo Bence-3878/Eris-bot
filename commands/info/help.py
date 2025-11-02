@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # commands/ping.py
-# Ping parancs
+# Help parancs
+
+if __name__ == '__main__':
+    exit(1)
 
 import discord
 from discord import app_commands, Locale
@@ -13,12 +16,11 @@ def create_help_command(client):
         app_commands.Command: A parancs objektum
     """
     @app_commands.command(
-        name="help",
-        description="Show available commands and their descriptions"
+        name="help"
     )
     @app_commands.describe()  # Lokalizációhoz
-    @app_commands.allowed_installs(guilds=True, users=False)
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def help_command(interaction: discord.Interaction):
         """Show available commands and their descriptions on servers"""
         await interaction.response.defer(ephemeral=False)
@@ -137,33 +139,21 @@ def create_help_command(client):
             view.add_item(button)
 
         await interaction.followup.send(embed=embed, view=view)
+    
+    # Lokalizált leírások beállítása
+    help_command.extras = {
+        'description_localizations': {
+            Locale.hungarian: "Elérhető parancsok és leírásuk megjelenítése",
+            Locale.american_english: "Show available commands and their descriptions"
+        }
+    }
+    
+    return help_command
 
-def register_help_command(tree, client, guild):
+def register_help_command(tree, client, guild=None):
     """
     Help parancs regisztrálása guild-ekhez (szerverekhez)
     """
     help_cmd = create_help_command(client)
-
-    # Guild-specifikus description beállítása
-    if guild:
-        # Szerver nyelve alapján description módosítás
-        guild_locale = str(guild.preferred_locale)
-
-        if guild_locale == "hu":
-            help_cmd.description = "Elérhető parancsok és leírásuk megjelenítése"
-        else:
-            help_cmd.description = "Show available commands and their descriptions"
-
-        tree.add_command(help_cmd, guild=guild)
-    else:
-        tree.add_command(help_cmd)
-
-    return help_cmd
-
-def register_help_command_dm(tree, client):
-    """
-    Help parancs regisztrálása DM-ekhez (privát üzenetekhez)
-    """
-    help_cmd = create_help_command(client)
-    tree.add_command(help_cmd) 
+    tree.add_command(help_cmd, guild=guild)
     return help_cmd

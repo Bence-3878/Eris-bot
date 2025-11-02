@@ -7,7 +7,7 @@ if __name__ == '__main__':
     exit(1)
 
 from .ping import register_ping_command
-from .help import register_help_command, register_help_command_dm
+from .help import register_help_command
 
 # Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
@@ -20,7 +20,7 @@ AVAILABLE_COMMANDS = {
 DM_COMMANDS = {
     "ping": register_ping_command,
     # "stats": register_stats_command_dm,
-    "help": register_help_command_dm,
+    "help": register_help_command,
 }
 
 def register_commands_info(tree, client, guild=None, enabled_commands=None):
