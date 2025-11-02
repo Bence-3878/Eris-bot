@@ -2,7 +2,11 @@
 # commands/__init__.py
 # Parancsok regisztrációja
 
-from .ping import register_ping_command, register_ping_command_dm
+
+if __name__ == '__main__':
+    exit(1)
+
+from .ping import register_ping_command
 from .help import register_help_command, register_help_command_dm
 
 # Elérhető parancsok registry (guild-ekhez)
@@ -14,12 +18,12 @@ AVAILABLE_COMMANDS = {
 
 # DM parancsok registry
 DM_COMMANDS = {
-    "ping": register_ping_command_dm,
+    "ping": register_ping_command,
     # "stats": register_stats_command_dm,
     "help": register_help_command_dm,
 }
 
-def register_commands_for_guild_info(tree, client, guild, enabled_commands):
+def register_commands_info(tree, client, guild=None, enabled_commands=None):
     """
     Parancsok regisztrálása egy adott szerverre
 
@@ -31,41 +35,28 @@ def register_commands_for_guild_info(tree, client, guild, enabled_commands):
     """
     registered_count = 0
 
-    for cmd_name in enabled_commands:
-        if cmd_name in AVAILABLE_COMMANDS:
+    if guild not in [None, client.guilds[0]]:
+        for cmd_name in enabled_commands:
+            if cmd_name in AVAILABLE_COMMANDS:
+                try:
+                    AVAILABLE_COMMANDS[cmd_name](tree, client, guild=guild)
+                    registered_count += 1
+                except Exception as e:
+                    print(f"  ✗ Hiba a '{cmd_name}' regisztrálásakor: {e}")
+            else:
+                print(f"  ⚠️ Ismeretlen parancs: {cmd_name}")
+    else:
+        # DM parancsok regisztrálása globálisan (de csak DM-ben működnek)
+        for cmd_name, register_func in DM_COMMANDS.items():
             try:
-                AVAILABLE_COMMANDS[cmd_name](tree, client, guild=guild)
+                register_func(tree, client)
                 registered_count += 1
             except Exception as e:
-                print(f"  ✗ Hiba a '{cmd_name}' regisztrálásakor: {e}")
-        else:
-            print(f"  ⚠️ Ismeretlen parancs: {cmd_name}")
+                print(f"  ✗ Hiba a '{cmd_name}' DM regisztrálásakor: {e}")
 
     return registered_count
 
 
-def register_dm_commands_info(tree, client):
-    """
-    Globális parancsok regisztrálása (CSAK DM támogatáshoz)
-
-    Args:
-        tree: CommandTree példány
-        client: Discord Client példány
-
-    Returns:
-        int: Regisztrált parancsok száma
-    """
-    registered_count = 0
-
-    # DM parancsok regisztrálása globálisan (de csak DM-ben működnek)
-    for cmd_name, register_func in DM_COMMANDS.items():
-        try:
-            register_func(tree, client)
-            registered_count += 1
-        except Exception as e:
-            print(f"  ✗ Hiba a '{cmd_name}' DM regisztrálásakor: {e}")
-
-    return registered_count
 
 
 def get_available_commands():

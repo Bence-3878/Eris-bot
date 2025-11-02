@@ -2,6 +2,10 @@
 # commands/ping.py
 # Ping parancs
 
+if __name__ == '__main__':
+    exit(1)
+    
+
 import discord
 from discord import app_commands, Locale
 from languages.languages import language_manager
@@ -9,21 +13,17 @@ from languages.languages import language_manager
 
 def create_ping_command(client):
     """
-    Ping parancs guild-ekhez (szerverekhez)
-    Returns:
-        app_commands.Command: A parancs objektum
+    Univerzális ping parancs - működik szervereken ÉS DM-ben
     """
     @app_commands.command(
-        name="ping",
-        description="Bot response time"
+        name="ping"
     )
-    @app_commands.describe()  # Lokalizációhoz
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def ping(interaction: discord.Interaction):
-        """Válaszidő mérése szervereken"""
-
-        # Nyelv meghatározása a szerver alapján
+        """Válaszidő mérése"""
+        
+        # Nyelv meghatározása
         if interaction.guild is None:
             lang_code = "en"
         else:
@@ -39,80 +39,31 @@ def create_ping_command(client):
             f"{pong_text}\n{bot_latency_text}"
         )
     
-    # Lokalizált leírások hozzáadása
+    # Lokalizált leírások - MINDEN támogatott nyelvre
     ping.description_localizations = {
         Locale.hungarian: "Bot válaszideje",
         Locale.american_english: "Bot response time",
-        Locale.british_english: "Bot response time"
+        Locale.british_english: "Bot response time",
+        ## További nyelvek hozzáadása szükség esetén
+        #Locale.german: "Bot-Antwortzeit",
+        #Locale.spanish: "Tiempo de respuesta del bot",
+        #Locale.french: "Temps de réponse du bot",
     }
     
     return ping
 
 
-#def create_ping_command_dm(client):
-#    """
-#    Ping parancs DM-ekhez (privát üzenetekhez)
-#
-#    Returns:
-#        app_commands.Command: A parancs objektum
-#    """
-#
-#    @app_commands.command(name="ping", description="Bot response time")
-#    @app_commands.allowed_installs(guilds=False, users=True)  # CSAK user install (DM)
-#    @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)  # CSAK DM-ekben
-#    async def ping(interaction: discord.Interaction):
-#        """Válaszidő mérése DM-ben (mindig angolul)"""
-#        # DM esetén mindig angol
-#        await ping_logic(client, interaction, "en")
-#
-#    # Lokalizált leírások hozzáadása
-#    ping.description_localizations = {
-#        Locale.hungarian: "Bot válaszideje",
-#        Locale.american_english: "Bot response time",
-#        Locale.british_english: "Bot response time"
-#    }
-#
-#    return ping
-#
-
-
 
 def register_ping_command(tree, client, guild=None):
     """
-    Ping parancs regisztrálása guild-ekhez
-    
-    Args:
-        tree: CommandTree példány
-        client: Discord Client példány
-        guild: A szerver, ahova regisztrálni kell
+    Ping parancs regisztrálása
     """
     ping_cmd = create_ping_command(client)
     
-    # Guild-specifikus description beállítása
     if guild:
-        # Szerver nyelve alapján description módosítás
-        guild_locale = str(guild.preferred_locale)
-        
-        if guild_locale == "hu":
-            ping_cmd.description = "Bot válaszideje"
-        else:
-            ping_cmd.description = "Bot response time"
-        
         tree.add_command(ping_cmd, guild=guild)
     else:
-        tree.add_command(ping_cmd)
+        tree.add_command(ping_cmd)  # Globális
     
     return ping_cmd
 
-
-def register_ping_command_dm(tree, client):
-    """
-    Ping parancs regisztrálása DM-ekhez (globálisan)
-    
-    Args:
-        tree: CommandTree példány
-        client: Discord Client példány
-    """
-    ping_cmd = create_ping_command(client)
-    tree.add_command(ping_cmd)  # Globális, de csak DM-ben működik
-    return ping_cmd

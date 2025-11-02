@@ -83,7 +83,7 @@ def create_help_command_guild(client):
 
                         # Add usage information
                         command_embed.add_field(
-                            name="Usage",
+                            name=language_manager.get_text(lang, "help", "usage"),
                             value=language_manager.get_command_usage(lang, cmd),
                             inline=False
                         )
@@ -92,7 +92,7 @@ def create_help_command_guild(client):
                         examples = language_manager.get_command_examples(lang, cmd)
                         if examples:
                             command_embed.add_field(
-                                name="Examples",
+                                name=language_manager.get_text(lang, "help", "examples"),
                                 value="\n".join(examples),
                                 inline=False
                             )

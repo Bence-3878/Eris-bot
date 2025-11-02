@@ -2,6 +2,9 @@
 # guild_settings.py
 # Szerver-specifikus parancs beállítások kezelése
 
+if __name__ == '__main__':
+    exit(1)
+
 import json
 from pathlib import Path
 
