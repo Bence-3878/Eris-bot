@@ -34,8 +34,32 @@ class BotInstance:
             print(f"📦 Discord.py verzió: {discord.__version__}")
             print(f"{'=' * 60}\n")
 
+            # Státusz beállítása
+            await self.client.change_presence(
+                status=discord.Status.invisible,  # online, idle, dnd, invisible
+                activity=discord.Game(name="🎮 /help command")
+            )
+
             print(f"📚 Elérhető parancsok (szerverekhez): {', '.join(get_available_commands())}")
             print(f"💬 DM parancsok: {', '.join(get_dm_commands())}\n")
+            
+            # FONTOS: Először töröljük az ÖSSZES parancsot (globális és guild)
+            print(f"🗑️ Régi parancsok törlése...\n")
+            try:
+                # Globális parancsok törlése
+                self.tree.clear_commands(guild=None)
+                await self.tree.sync()
+                print(f"   ✓ Globális parancsok törölve")
+                
+                # Minden guild parancsainak törlése
+                for guild in self.client.guilds:
+                    self.tree.clear_commands(guild=guild)
+                    await self.tree.sync(guild=guild)
+                    print(f"   ✓ {guild.name} parancsai törölve")
+                    
+                print()
+            except Exception as e:
+                print(f"   ✗ Törlési hiba: {e}\n")
             
             # 1. Globális DM parancsok regisztrálása (CSAK DM-ekhez)
             print(f"🌍 Globális DM parancsok regisztrálása (CSAK privát üzenetekhez)...\n")
@@ -84,6 +108,12 @@ class BotInstance:
             print(f"🏢 Szerver parancsok: CSAK szervereken")
             print(f"💬 DM parancsok: CSAK privát üzenetekben")
             print(f"{'=' * 60}\n")
+
+            # Státusz beállítása
+            await self.client.change_presence(
+                status=discord.Status.online,  # online, idle, dnd, invisible
+                activity=discord.Game(name="🎮 /help paranccsal")
+            )
         
         @self.client.event
         async def on_guild_join(guild):

@@ -160,8 +160,8 @@ class LanguageManager:
         # Locale mapping (Discord locale -> bot nyelv kód)
         locale_mapping = {
             "hu": "hu",
-            "en-US": "en-us",
-            "en-GB": "en-gb",
+            "en-US": "en",
+            "en-GB": "en",
         }
         
         # Ha van mapping, használjuk
