@@ -22,7 +22,14 @@ def register_all_commands(tree, client, guild=None, enabled_commands=None):
         client: A Discord kliens
         guild: Az opcionális guild objektum szerverspecifikus parancsokhoz
     """
-    register_commands_info(tree, client, guild, enabled_commands)
+    # Ha guild van megadva, szerezd be a guild beállításait
+    if guild:
+        from guild_settings.guild_settings import guild_settings
+        enabled_commands = guild_settings.get_guild_commands(guild.id)
+        register_commands_info(tree, client, guild, enabled_commands)
+    else:
+        # Ha nincs guild, használd az alapértelmezett parancsokat
+        register_commands_info(tree, client, guild, get_available_commands())
 
 
 

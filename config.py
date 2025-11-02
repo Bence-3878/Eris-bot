@@ -75,7 +75,11 @@ class Config:
         intents.message_content = True
         intents.members = True
         
-        self.client = discord.Client(intents=intents)
+        self.client = discord.Client(
+    intents=intents,
+    status=discord.Status.invisible,  # Ez biztosítja, hogy MINDIG láthatatlanként induljon
+    activity=discord.Game(name="🎮 Indítás...")
+)
         self.tree = app_commands.CommandTree(self.client)
     
     def _setup_session(self):
@@ -94,4 +98,5 @@ token = config.token
 handler = config.handler
 logger = config.logger
 sess = config.sess
+error_channel = 1432687370339352659
 

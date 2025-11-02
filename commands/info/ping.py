@@ -4,7 +4,7 @@
 
 if __name__ == '__main__':
     exit(1)
-    
+
 
 import discord
 from discord import app_commands, Locale
@@ -22,7 +22,7 @@ def create_ping_command(client):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def ping(interaction: discord.Interaction):
         """Válaszidő mérése"""
-        
+
         # Nyelv meghatározása
         if interaction.guild is None:
             lang_code = "en"
@@ -38,7 +38,7 @@ def create_ping_command(client):
         await interaction.response.send_message(
             f"{pong_text}\n{bot_latency_text}"
         )
-    
+
     # Lokalizált leírások - MINDEN támogatott nyelvre
     ping.description_localizations = {
         Locale.hungarian: "Bot válaszideje",
@@ -49,9 +49,8 @@ def create_ping_command(client):
         #Locale.spanish: "Tiempo de respuesta del bot",
         #Locale.french: "Temps de réponse du bot",
     }
-    
-    return ping
 
+    return ping
 
 
 def register_ping_command(tree, client, guild=None):
@@ -59,11 +58,11 @@ def register_ping_command(tree, client, guild=None):
     Ping parancs regisztrálása
     """
     ping_cmd = create_ping_command(client)
-    
+
     if guild:
         tree.add_command(ping_cmd, guild=guild)
     else:
         tree.add_command(ping_cmd)  # Globális
-    
+
     return ping_cmd
 

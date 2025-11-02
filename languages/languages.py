@@ -149,7 +149,7 @@ class LanguageManager:
         
         Args:
             interaction: Discord Interaction objektum
-        
+            
         Returns:
             str: Nyelv kód
         """
@@ -162,7 +162,7 @@ class LanguageManager:
             #"es-ES": "es",
             #"fr": "fr",
         }
-    
+
         # 1. ELSŐDLEGES: Felhasználó nyelve (interaction.locale)
         #    Ez a felhasználó Discord kliens nyelvbeállítása
         user_locale = str(interaction.locale)

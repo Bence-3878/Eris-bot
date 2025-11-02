@@ -57,8 +57,6 @@ def register_commands_info(tree, client, guild=None, enabled_commands=None):
     return registered_count
 
 
-
-
 def get_available_commands():
     """Összes elérhető parancs nevének listája"""
     return list(AVAILABLE_COMMANDS.keys())

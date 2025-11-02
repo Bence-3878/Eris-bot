@@ -12,7 +12,7 @@ from pathlib import Path
 class GuildSettings:
     """Szerver-specifikus beállítások kezelője"""
     
-    def __init__(self, settings_file='guild_settings.json'):
+    def __init__(self, settings_file='guild_settings/guild_settings.json'):
         self.settings_file = Path(settings_file)
         self.settings = self._load_settings()
     
