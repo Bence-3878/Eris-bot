@@ -33,13 +33,6 @@ class BotInstance:
             print(f"📋 ID: {self.client.user.id}")
             print(f"📦 Discord.py verzió: {discord.__version__}")
             print(f"{'=' * 60}\n")
-
-            # Státusz beállítása
-            await self.client.change_presence(
-                status=discord.Status.invisible,  # online, idle, dnd, invisible
-                activity=discord.Game(name="🎮 /help command")
-            )
-
             print(f"📚 Elérhető parancsok (szerverekhez): {', '.join(get_available_commands())}")
             print(f"💬 DM parancsok: {', '.join(get_dm_commands())}\n")
             
