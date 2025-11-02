@@ -151,28 +151,27 @@ class LanguageManager:
         """
         # Ha privát üzenet (DM), mindig angol
         if interaction.guild is None:
-            return "en"
-        
+            return self.default_language  # ← "en" helyett default használata
+    
         # Szerveren: a szerver alapértelmezett nyelve
-        # Discord guild preferred_locale alapján
         guild_locale = str(interaction.guild.preferred_locale)
-        
+    
         # Locale mapping (Discord locale -> bot nyelv kód)
         locale_mapping = {
             "hu": "hu",
-            "en-US": "en-us",
-            "en-GB": "en-gb",
+            "en-US": "en",
+            "en-GB": "en",
         }
-        
+    
         # Ha van mapping, használjuk
-        lang_code = locale_mapping.get(guild_locale, "en")
-        
+        lang_code = locale_mapping.get(guild_locale, self.default_language)
+    
         # Ellenőrizzük, hogy van-e ilyen nyelv
         if lang_code in self.languages:
             return lang_code
-        
+    
         # Alapértelmezett: angol
-        return "en-us"
+        return self.default_language  # ← "en-us" helyett "en"
 
 
 # Globális language manager példány

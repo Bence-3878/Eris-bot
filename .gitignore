@@ -22,3 +22,4 @@ info/__pycache__
 .pyc
 *.pyc
 *.pyo
+/guild_settings.json
