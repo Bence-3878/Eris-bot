@@ -10,7 +10,7 @@ A bot indulásakor ez a modul regisztrálja az összes elérhető parancsot.
 if __name__ == '__main__':
     exit(1)
 
-from commands.info import register_commands_info, get_available_commands_info, get_dm_commands_info
+from commands.info import register_commands_info, register_dm_commands_info, get_available_commands_info, get_dm_commands_info
 
 
 def register_all_commands(tree, client, guild=None, enabled_commands=None):

@@ -9,7 +9,7 @@ import discord
 import logging
 from config import config
 from commands import get_all_available_commands as get_available_commands, get_all_dm_commands as get_dm_commands, \
- register_all_commands
+ register_all_commands, register_all_dm_commands
 from guild_settings.guild_settings import guild_settings
 
 
@@ -61,7 +61,7 @@ class BotInstance:
             # 1. Globális DM parancsok regisztrálása (CSAK DM-ekhez)
             print(f"🌍 Globális DM parancsok regisztrálása (CSAK privát üzenetekhez)...\n")
             try:
-                #dm_registered = register_dm_commands_info(self.tree, self.client)
+                dm_registered = register_all_dm_commands(self.tree, self.client)
                 global_synced = await self.tree.sync()
                 print(f"   ✓ {len(global_synced)} DM parancs szinkronizálva: {[c.name for c in global_synced]}")
                 print(f"   💬 Ezek a parancsok CSAK privát üzenetekben működnek!\n")

@@ -61,9 +61,9 @@ def create_ping_command_dm(client):
             Locale.american_english: "Bot response time",
             Locale.british_english: "Bot response time",
             ## További nyelvek hozzáadása szükség esetén
-            #Locale.german: "Bot-Antwortzeit",
-            #Locale.spanish: "Tiempo de respuesta del bot",
-            #Locale.french: "Temps de réponse du bot",
+            # Locale.german: "Bot-Antwortzeit",
+            # Locale.spanish: "Tiempo de respuesta del bot",
+            # Locale.french: "Temps de réponse du bot",
         }
     
     return ping
