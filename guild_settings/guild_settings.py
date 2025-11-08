@@ -38,7 +38,7 @@ class GuildSettings:
     def _save_settings(self, settings=None):
         """Beállítások mentése fájlba"""
         if settings is None:
-            settings = self.settings
+            settings =  self.settings
         
         try:
             with open(self.settings_file, 'w', encoding='utf-8') as f:

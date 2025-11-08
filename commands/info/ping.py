@@ -18,6 +18,7 @@ def create_ping_command(client):
     @app_commands.command(
         name="ping"
     )
+
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def ping(interaction: discord.Interaction):

@@ -7,6 +7,7 @@ if __name__ == '__main__':
     exit(1)
 
 from .ping import register_ping_command
+
 from .help import register_help_command
 
 # Elérhető parancsok registry (guild-ekhez)

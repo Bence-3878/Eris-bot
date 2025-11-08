@@ -17,7 +17,7 @@ class LanguageManager:
     def __init__(self, lang_dir="languages"):
         self.lang_dir = Path(lang_dir)
         self.languages = {}
-        self.default_language = "en"
+        self.default_language =  "en"
         self._load_languages()
 
     def _load_languages(self):
