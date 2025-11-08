@@ -68,7 +68,10 @@ def create_ping_command_dm(client):
     
     return ping
 
-async def ping_logic(client, interaction: discord.Interaction, lang_code: str):
+async def ping_logic(client, interaction: discord.Interaction):
+
+    # Nyelv meghatározása a szerver alapján
+    lang_code = language_manager.get_language_for_context(interaction)
     latency_ms = round(client.latency * 1000)
 
     # Fordítások lekérése
@@ -92,9 +95,9 @@ def register_ping_command(tree, client, guild=None):
         guild_locale = str(guild.preferred_locale)
         
         if guild_locale == "hu":
-            ping_cmd.description = "Bot válaszideje"
+            ping_cmd.description = language_manager.get_command_description("hu", "ping")
         else:
-            ping_cmd.description = "Bot response time"
+            ping_cmd.description = language_manager.get_command_description("en", "ping")
         
         tree.add_command(ping_cmd, guild=guild)
     else:
