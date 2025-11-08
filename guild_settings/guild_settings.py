@@ -2,6 +2,9 @@
 # guild_settings.py
 # Szerver-specifikus parancs beállítások kezelése
 
+if __name__ == '__main__':
+    exit(1)
+
 import json
 from pathlib import Path
 
@@ -36,7 +39,7 @@ class GuildSettings:
     def _save_settings(self, settings=None):
         """Beállítások mentése fájlba"""
         if settings is None:
-            settings = self.settings
+            settings =  self.settings
         
         try:
             with open(self.settings_file, 'w', encoding='utf-8') as f:

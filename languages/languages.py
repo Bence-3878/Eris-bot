@@ -2,6 +2,10 @@
 # languages.py
 # Nyelvkezelés a bot számára
 
+
+if __name__ == '__main__':
+    exit(1)
+
 import json
 import os
 from pathlib import Path
@@ -162,18 +166,29 @@ class LanguageManager:
             "hu": "hu",
             "en-US": "en",
             "en-GB": "en",
+            #"de": "de",
+            #"es-ES": "es",
+            #"fr": "fr",
         }
-        
-        # Ha van mapping, használjuk
-        lang_code = locale_mapping.get(guild_locale, "en")
-        
-        # Ellenőrizzük, hogy van-e ilyen nyelv
-        if lang_code in self.languages:
-            return lang_code
-        
-        # Alapértelmezett: angol
-        return "en"
 
+        # 1. ELSŐDLEGES: Felhasználó nyelve (interaction.locale)
+        #    Ez a felhasználó Discord kliens nyelvbeállítása
+        user_locale = str(interaction.locale)
+        user_lang = locale_mapping.get(user_locale, None)
 
-# Globális language manager példány
+        if user_lang and user_lang in self.languages:
+            return user_lang
+
+        # 2. MÁSODLAGOS: Ha szerveren vagyunk, szerver nyelve
+        if interaction.guild is not None:
+            guild_locale = str(interaction.guild.preferred_locale)
+            guild_lang = locale_mapping.get(guild_locale, None)
+
+            if guild_lang and guild_lang in self.languages:
+                return guild_lang
+
+        # 3. ALAPÉRTELMEZETT: angol
+        return self.default_language
+
+# Globális language_manager példány létrehozása
 language_manager = LanguageManager()

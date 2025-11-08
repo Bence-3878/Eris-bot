@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # commands/ping.py
-# Ping parancs
+# Help parancs
+
+if __name__ == '__main__':
+    exit(1)
 
 import discord
 from discord import app_commands, Locale
@@ -13,11 +16,9 @@ def create_help_command_guild(client):
         app_commands.Command: A parancs objektum
     """
     @app_commands.command(
-        name="help",
-        description="Show available commands and their descriptions"
+        name="help"
     )
     @app_commands.describe()  # Lokalizációhoz
-
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def help_command(interaction: discord.Interaction):
@@ -84,7 +85,7 @@ def create_help_command_guild(client):
 
                         # Add usage information
                         command_embed.add_field(
-                            name="Usage",
+                            name=language_manager.get_text(lang, "help", "usage"),
                             value=language_manager.get_command_usage(lang, cmd),
                             inline=False
                         )
@@ -93,7 +94,7 @@ def create_help_command_guild(client):
                         examples = language_manager.get_command_examples(lang, cmd)
                         if examples:
                             command_embed.add_field(
-                                name="Examples",
+                                name=language_manager.get_text(lang, "help", "examples"),
                                 value="\n".join(examples),
                                 inline=False
                             )
@@ -139,11 +140,12 @@ def create_help_command_guild(client):
 
         await interaction.followup.send(embed=embed, view=view)
 
-    # Lokalizált leírások hozzáadása
-    help_command.description_localizations = {
-        Locale.hungarian: "Elérhető parancsok és leírásuk megjelenítése",
-        Locale.american_english: "Show available commands and their descriptions",
-        Locale.british_english: "Show available commands and their descriptions"
+    # Lokalizált leírások beállítása
+    help_command.extras = {
+        'description_localizations': {
+            Locale.hungarian: "Elérhető parancsok és leírásuk megjelenítése",
+            Locale.american_english: "Show available commands and their descriptions"
+        }
     }
     
     return help_command

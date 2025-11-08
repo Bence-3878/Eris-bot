@@ -2,11 +2,14 @@
 # bot.py
 # Discord bot fő logikája és eseménykezelői
 
+if __name__ == '__main__':
+    exit(1)
+
 import discord
 import logging
 from config import config
 from commands import get_all_available_commands as get_available_commands, get_all_dm_commands as get_dm_commands, \
-    register_dm_commands_info, register_all_commands
+ register_all_commands
 from guild_settings.guild_settings import guild_settings
 
 
@@ -34,14 +37,31 @@ class BotInstance:
             print(f"📋 ID: {self.client.user.id}")
             print(f"📦 Discord.py verzió: {discord.__version__}")
             print(f"{'=' * 60}\n")
-
             print(f"📚 Elérhető parancsok (szerverekhez): {', '.join(get_available_commands())}")
             print(f"💬 DM parancsok: {', '.join(get_dm_commands())}\n")
             
+            # FONTOS: Először töröljük az ÖSSZES parancsot (globális és guild)
+            print(f"🗑️ Régi parancsok törlése...\n")
+            try:
+                # Globális parancsok törlése
+                self.tree.clear_commands(guild=None)
+                await self.tree.sync()
+                print(f"   ✓ Globális parancsok törölve")
+
+                # Minden guild parancsainak törlése
+                for guild in self.client.guilds:
+                    self.tree.clear_commands(guild=guild)
+                    await self.tree.sync(guild=guild)
+                    print(f"   ✓ {guild.name} parancsai törölve")
+
+                print()
+            except Exception as e:
+                print(f"   ✗ Törlési hiba: {e}\n")
+
             # 1. Globális DM parancsok regisztrálása (CSAK DM-ekhez)
             print(f"🌍 Globális DM parancsok regisztrálása (CSAK privát üzenetekhez)...\n")
             try:
-                dm_registered = register_dm_commands_info(self.tree, self.client)
+                #dm_registered = register_dm_commands_info(self.tree, self.client)
                 global_synced = await self.tree.sync()
                 print(f"   ✓ {len(global_synced)} DM parancs szinkronizálva: {[c.name for c in global_synced]}")
                 print(f"   💬 Ezek a parancsok CSAK privát üzenetekben működnek!\n")
@@ -85,7 +105,13 @@ class BotInstance:
             print(f"🏢 Szerver parancsok: CSAK szervereken")
             print(f"💬 DM parancsok: CSAK privát üzenetekben")
             print(f"{'=' * 60}\n")
-        
+
+            # Státusz beállítása
+            await self.client.change_presence(
+                status=discord.Status.online,  # online, idle, dnd, invisible
+                activity=discord.Game(name="🎮 /help paranccsal")
+            )
+
         @self.client.event
         async def on_guild_join(guild):
             """Amikor a bot csatlakozik egy új szerverhez"""

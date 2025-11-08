@@ -7,10 +7,13 @@ Parancsok regisztrációját és konfigurációját kezelő modul.
 A bot indulásakor ez a modul regisztrálja az összes elérhető parancsot.
 """
 
-from commands.info import register_commands_info, register_dm_commands_info, get_dm_commands_info, get_available_commands_info
-#from commands.settings import register_commands_settings, register_dm_commands_settings, get_dm_commands_settings, get_available_commands_settings
+if __name__ == '__main__':
+    exit(1)
 
-def register_all_commands(tree, client, guild=None):
+from commands.info import register_commands_info, get_available_commands_info, get_dm_commands_info
+
+
+def register_all_commands(tree, client, guild=None, enabled_commands=None):
     """
     Az összes elérhető parancs regisztrálása.
 
@@ -19,8 +22,14 @@ def register_all_commands(tree, client, guild=None):
         client: A Discord kliens
         guild: Az opcionális guild objektum szerverspecifikus parancsokhoz
     """
-    register_commands_info(tree, client, guild)
-    #register_commands_settings(tree, client, guild)
+    # Ha guild van megadva, szerezd be a guild beállításait
+    if guild:
+        from guild_settings.guild_settings import guild_settings
+        enabled_commands = guild_settings.get_guild_commands(guild.id)
+        register_commands_info(tree, client, guild, enabled_commands)
+    else:
+        # Ha nincs guild, használd az alapértelmezett parancsokat
+        register_commands_info(tree, client, guild, get_available_commands_info())
 
 
 def register_all_dm_commands(tree, client):
@@ -32,7 +41,6 @@ def register_all_dm_commands(tree, client):
         client: A Discord kliens
     """
     register_dm_commands_info(tree, client)
-    #register_dm_commands_settings(tree, client)
 
 def get_all_available_commands():
     """

@@ -20,7 +20,9 @@
       "examples": [],
       "responses":{
         "title": "Lista a parancs kategoriágról",
-        "back": "Vissza"
+        "back": "Vissza",
+        "usage": "Használat",
+        "examples": "Példa"
       }
     }
   },
