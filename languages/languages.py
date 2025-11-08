@@ -120,8 +120,8 @@ class LanguageManager:
             list: Kategória nevek listája (pl. ["info", "moderation"])
 
         Példák:
-            >>> lang_manager = LanguageManager()
-            >>> lang_manager.get_all_categories("hu")
+            lang_manager = LanguageManager()
+            lang_manager.get_all_categories("hu")
             ["info", "moderation"]
         """
 
@@ -160,8 +160,8 @@ class LanguageManager:
         # Locale mapping (Discord locale -> bot nyelv kód)
         locale_mapping = {
             "hu": "hu",
-            "en-US": "en-us",
-            "en-GB": "en-gb",
+            "en-US": "en",
+            "en-GB": "en",
         }
         
         # Ha van mapping, használjuk
@@ -172,7 +172,7 @@ class LanguageManager:
             return lang_code
         
         # Alapértelmezett: angol
-        return "en-us"
+        return "en"
 
 
 # Globális language manager példány
