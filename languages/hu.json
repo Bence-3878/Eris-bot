@@ -20,9 +20,24 @@
       "examples": [],
       "responses":{
         "title": "Lista a parancs kategoriágról",
-        "back": "Vissza"
+        "back": "Vissza",
+        "usage": "Használat",
+        "examples": "Példa"
+      }
+    },
+    "avatar": {
+      "description": "Profilkép lekérés",
+      "usage": "avatar [felhasználó]",
+      "examples": [
+        "avatar",
+        "avatar @User#1234"
+      ],
+      "responses": {
+        "global": "{} [profilképe]({}) ",
+        "guild": "{} [profilképe]({}) és [profilképe a szerveren]({})"
       }
     }
+
   },
   "moderation": {
     "name": "Moderáció",

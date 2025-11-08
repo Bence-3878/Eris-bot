@@ -2,6 +2,10 @@
 # commands/ping.py
 # Ping parancs
 
+if __name__ == '__main__':
+    exit(1)
+
+
 import discord
 from discord import app_commands, Locale
 from languages.languages import language_manager
@@ -14,8 +18,7 @@ def create_ping_command_guild(client):
         app_commands.Command: A parancs objektum
     """
     @app_commands.command(
-        name="ping",
-        description="Bot response time"
+        name="ping"
     )
     @app_commands.describe()  # Lokalizációhoz
     @app_commands.allowed_installs(guilds=True, users=False)
@@ -51,17 +54,24 @@ def create_ping_command_dm(client):
         """Válaszidő mérése DM-ben (mindig angolul)"""
         # DM esetén mindig angol
         await ping_logic(client, interaction, "en")
-    
-    # Lokalizált leírások hozzáadása
-    ping.description_localizations = {
-        Locale.hungarian: "Bot válaszideje",
-        Locale.american_english: "Bot response time",
-        Locale.british_english: "Bot response time"
-    }
+
+        # Lokalizált leírások - MINDEN támogatott nyelvre
+        ping.description_localizations = {
+            Locale.hungarian: "Bot válaszideje",
+            Locale.american_english: "Bot response time",
+            Locale.british_english: "Bot response time",
+            ## További nyelvek hozzáadása szükség esetén
+            # Locale.german: "Bot-Antwortzeit",
+            # Locale.spanish: "Tiempo de respuesta del bot",
+            # Locale.french: "Temps de réponse du bot",
+        }
     
     return ping
 
-async def ping_logic(client, interaction: discord.Interaction, lang_code: str):
+async def ping_logic(client, interaction: discord.Interaction):
+
+    # Nyelv meghatározása a szerver alapján
+    lang_code = language_manager.get_language_for_context(interaction)
     latency_ms = round(client.latency * 1000)
 
     # Fordítások lekérése
@@ -75,12 +85,7 @@ async def ping_logic(client, interaction: discord.Interaction, lang_code: str):
 
 def register_ping_command(tree, client, guild=None):
     """
-    Ping parancs regisztrálása guild-ekhez
-    
-    Args:
-        tree: CommandTree példány
-        client: Discord Client példány
-        guild: A szerver, ahova regisztrálni kell
+    Ping parancs regisztrálása
     """
     ping_cmd = create_ping_command_guild(client)
     
@@ -90,9 +95,9 @@ def register_ping_command(tree, client, guild=None):
         guild_locale = str(guild.preferred_locale)
         
         if guild_locale == "hu":
-            ping_cmd.description = "Bot válaszideje"
+            ping_cmd.description = language_manager.get_command_description("hu", "ping")
         else:
-            ping_cmd.description = "Bot response time"
+            ping_cmd.description = language_manager.get_command_description("en", "ping")
         
         tree.add_command(ping_cmd, guild=guild)
     else:

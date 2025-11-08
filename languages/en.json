@@ -16,10 +16,13 @@
     },
     "help": {
       "description": "Help",
-      "usage": "help [command]",
+      "usage": "help",
       "examples": [],
       "responses":{
-       "title": "List of command categories"
+        "title": "List of command categories",
+        "back": "Back",
+        "usage": "Usage",
+        "examples": "Examples"
       }
     }
   },

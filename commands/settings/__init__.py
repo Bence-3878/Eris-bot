@@ -1,25 +1,21 @@
 # -*- coding: utf-8 -*-
-# commands/info/__init__.py
+# commands/settings/__init__.py
 # Parancsok regisztrációja
 
-from .ping import register_ping_command, register_ping_command_dm
-from .help import register_help_command, register_help_command_dm
-from .avater import register_avatar_command
+from .commands_settings import register_settings_commands
 
 # Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
-    "ping": register_ping_command,
-    "help": register_help_command,
-    "avater": register_avatar_command,
+    "settings": register_settings_commands,
+
 }
 
 # DM parancsok registry
 DM_COMMANDS = {
-    "ping": register_ping_command_dm,
-    "help": register_help_command_dm,
+
 }
 
-def register_commands_info(tree, client, guild, enabled_commands):
+def register_commands_settings(tree, client, guild, enabled_commands):
     """
     Parancsok regisztrálása egy adott szerverre
 
@@ -44,7 +40,7 @@ def register_commands_info(tree, client, guild, enabled_commands):
     return registered_count
 
 
-def register_dm_commands_info(tree, client):
+def register_dm_commands_settings(tree, client):
     """
     Globális parancsok regisztrálása (CSAK DM támogatáshoz)
 
@@ -68,11 +64,11 @@ def register_dm_commands_info(tree, client):
     return registered_count
 
 
-def get_available_commands_info():
+def get_available_commands_settings():
     """Összes elérhető parancs nevének listája"""
     return list(AVAILABLE_COMMANDS.keys())
 
 
-def get_dm_commands_info():
+def get_dm_commands_settings():
     """DM-ben elérhető parancsok listája"""
     return list(DM_COMMANDS.keys())
