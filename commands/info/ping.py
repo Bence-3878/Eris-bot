@@ -43,7 +43,8 @@ def create_ping_command_dm(client):
     Returns:
         app_commands.Command: A parancs objektum
     """
-    
+
+
     @app_commands.command(name="ping", description="Bot response time")
     @app_commands.allowed_installs(guilds=False, users=True)  # CSAK user install (DM)
     @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)  # CSAK DM-ekben

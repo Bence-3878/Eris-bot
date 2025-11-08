@@ -17,6 +17,7 @@ def create_help_command_guild(client):
         description="Show available commands and their descriptions"
     )
     @app_commands.describe()  # Lokalizációhoz
+
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def help_command(interaction: discord.Interaction):
