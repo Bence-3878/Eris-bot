@@ -4,18 +4,18 @@
 
 from .ping import register_ping_command, register_ping_command_dm
 from .help import register_help_command, register_help_command_dm
+from .avater import register_avatar_command
 
 # Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
     "ping": register_ping_command,
-    # "stats": register_stats_command,  # Később hozzáadható
     "help": register_help_command,
+    "avater": register_avatar_command,
 }
 
 # DM parancsok registry
 DM_COMMANDS = {
     "ping": register_ping_command_dm,
-    # "stats": register_stats_command_dm,
     "help": register_help_command_dm,
 }
 

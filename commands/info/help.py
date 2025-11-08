@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# commands/ping.py
+# commands/help.py
 # Help parancs
 
 if __name__ == '__main__':
@@ -28,14 +28,6 @@ def create_help_command_guild(client):
         await help_logic(client,interaction)
 
 
-    # Lokalizált leírások beállítása
-    help_command.extras = {
-        'description_localizations': {
-            Locale.hungarian: "Elérhető parancsok és leírásuk megjelenítése",
-            Locale.american_english: "Show available commands and their descriptions"
-        }
-    }
-    
     return help_command
 
 def create_help_command_dm(client):
@@ -50,9 +42,9 @@ def create_help_command_dm(client):
     async def help_command(interaction: discord.Interaction):
         """Show available commands and their descriptions in DMs (always in English)"""
         await interaction.response.defer(ephemeral=False)
-        
+
         await help_logic(client,interaction)
-    
+
     return help_command
 
 async def help_logic(client, interaction: discord.Interaction):
@@ -197,5 +189,5 @@ def register_help_command_dm(tree, client):
     Help parancs regisztrálása DM-ekhez (privát üzenetekhez)
     """
     help_cmd = create_help_command_dm(client)
-    tree.add_command(help_cmd) 
+    tree.add_command(help_cmd)
     return help_cmd
