@@ -18,8 +18,22 @@ def create_send_server(client):
         name="send_server"
     )
     @app_commands.describe(
-        text="message",
-        channel="which channel?"
+        text=app_commands.locale_str(
+            "message",
+            **{
+                "hu": "üzenet",
+                "en-US": "message",
+                "en-GB": "message",
+            }
+        ),
+        channel=app_commands.locale_str(
+            "which channel?",
+            **{
+                "hu": "melyik csatornába?",
+                "en-US": "which channel?",
+                "en-GB": "which channel?",
+            }
+        ),
     )
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
@@ -113,10 +127,11 @@ def register_server_commands(tree, client, guild=None):
         languages = language_manager.get_all_available_languages()
 
         for lang in languages:
-            if lang == guild_locale:
+            if language_manager.discord_lang_code(lang) == guild_locale:
                 cmd.description = language_manager.get_command_description(lang, cmd.name)
 
-        if guild_locale not in languages:
+        mapped = language_manager.locale_mapping.get(guild_locale)
+        if mapped not in languages:
             cmd.description = language_manager.get_command_description("en", cmd.name)
 
         tree.add_command(cmd, guild=guild)
