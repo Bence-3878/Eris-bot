@@ -2,11 +2,11 @@
 # commands/nsfw/__init__.py
 # Parancsok regisztrációja
 
-from .nsfw import register_nsfw_command, register_nsfw_command_dm
+from .nsfw import register_nsfw_commands, register_nsfw_command_dm
 
 # Elérhető parancsok registry (guild-ekhez)
 AVAILABLE_COMMANDS = {
-    "nsfw": register_nsfw_command,
+    "nsfw": register_nsfw_commands,
 }
 
 # DM parancsok registry

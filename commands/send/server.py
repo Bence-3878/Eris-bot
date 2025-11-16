@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # webhook.py
+
 import discord
-import requests
-import json
-import config
-import database
 from discord import app_commands, Locale
 
-from commands.info import register_avatar_command
+
 from languages.languages import language_manager
 from error.error import error
 
