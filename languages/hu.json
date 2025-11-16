@@ -24,7 +24,20 @@
         "usage": "Használat",
         "examples": "Példa"
       }
+    },
+    "avatar": {
+      "description": "Profilkép lekérés",
+      "usage": "avatar [felhasználó]",
+      "examples": [
+        "avatar",
+        "avatar @User#1234"
+      ],
+      "responses": {
+        "global": "{} [profilképe]({}) ",
+        "guild": "{} [profilképe]({}) és [profilképe a szerveren]({})"
+      }
     }
+
   },
   "moderation": {
     "name": "Moderáció",
@@ -42,6 +55,25 @@
         "Reason": "Ok",
         "No reason provided": "Nincs megadva ok"
         }
+    }
+  },
+  "send": {
+    "name": "Üzenet küldés",
+    "description": "Különböző üzenet küldő parancsok",
+    "send_server": {
+      "description": "Üzenet küld a szerverre egy webhook segitségével.",
+      "usage": "send_server <üzenet> [csatorna]",
+      "examples": [
+        "send_server Hello World",
+        "send_server Hello World #general"
+      ],
+      "responses": {
+        "webhook_no_perm": "❌ Nincs jogosultságom webhook létrehozására ebben a csatornában!",
+        "messages_no_perm": "❌ Nincs jogosultságod üzenet küldeni ebbe a csatornába!",
+        "successful": "✅ Üzenet elküldve a {} csatornába!",
+        "Forbidden_error": "❌ Nincs jogosultságom ehhez a művelethez!",
+        "Error": "❌ Hiba történt"
+      }
     }
   }
 }

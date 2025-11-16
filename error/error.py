@@ -21,7 +21,7 @@ async def error(obj: Any = None, string: str | None = None, exception: Any = Non
     #    guild = obj
 
     error_msg = ""
-    error_channel = config.error_channel
+    error_channel = 1432687370339352659 #config.error_channel
     try:
         channel = client.get_channel(error_channel)
         if channel is None:

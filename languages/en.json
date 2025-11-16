@@ -16,13 +16,25 @@
     },
     "help": {
       "description": "Help",
-      "usage": "help",
+      "usage": "help [command]",
       "examples": [],
-      "responses":{
+      "responses": {
         "title": "List of command categories",
         "back": "Back",
         "usage": "Usage",
         "examples": "Examples"
+      }
+    },
+    "avatar": {
+      "description": "Get a profile picture",
+      "usage": "avatar [user]",
+      "examples": [
+        "avatar",
+        "avatar @User#1234"
+      ],
+      "responses": {
+        "global": "{}'s [profile picture]({})",
+        "guild": "{}'s [profile picture]({}) and [server profile picture]({})"
       }
     }
   },
@@ -41,7 +53,26 @@
         "You have been banned from": "You have been banned from",
         "Reason": "Reason",
         "No reason provided": "No reason provided"
-        }
+      }
+    }
+  },
+  "send": {
+    "name": "Message sending",
+    "description": "Various message sending commands",
+    "send_server": {
+      "description": "Sends a message to the server using a webhook.",
+      "usage": "send_server <message> [channel]",
+      "examples": [
+        "send_server Hello World",
+        "send_server Hello World #general"
+      ],
+      "responses": {
+        "webhook_no_perm": "❌ I don't have permission to create webhooks in this channel!",
+        "messages_no_perm": "❌ You don't have permission to send messages to this channel!",
+        "successful": "✅ Message sent to channel {}!",
+        "Forbidden_error": "❌ I don't have permission to perform this action!",
+        "Error": "❌ An error has occurred"
+      }
     }
   }
 }
