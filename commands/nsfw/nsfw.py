@@ -1,4 +1,6 @@
-
+# -*- coding: utf-8 -*-
+# 2.0.0
+# nsfw.py
 
 
 @tree.command(name="nsfw", nsfw=True)
