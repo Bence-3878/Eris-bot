@@ -2,9 +2,36 @@
 # 2.0.0
 # nsfw.py
 
+import discord
+import os                                     
+import random
+from discord import app_commands
 
-@tree.command(name="nsfw", nsfw=True)
-async def nsfw(interaction: discord.Interaction):
+def create_ping_command_guild(client):
+    @app_commands.command(
+        name="nsfw", nsfw=True
+    )
+    @app_commands.describe()  # Lokalizációhoz
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+    async def ping(interaction: discord.Interaction):
+        await nsfw_logic(interaction)
+
+def create_ping_command_dm(client):
+    """
+    Ping parancs DM-ekhez (privát üzenetekhez)
+
+    Returns:
+        app_commands.Command: A parancs objektum
+    """
+
+    @app_commands.command(name="ping", description="Bot response time")
+    @app_commands.allowed_installs(guilds=False, users=True)  # CSAK user install (DM)
+    @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)  # CSAK DM-ekben
+    async def ping(interaction: discord.Interaction):
+        await nsfw_logic(interaction)
+
+async def nsfw_logic(interaction: discord.Interaction):
     # Biztonság: futásidőben is ellenőrizzük, hogy NSFW csatorna
     if not (getattr(getattr(interaction, "channel", None), "is_nsfw", lambda: False) or isinstance(
             interaction.channel, discord.DMChannel)):
