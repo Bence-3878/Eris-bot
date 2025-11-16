@@ -17,7 +17,10 @@ def create_send_server(client):
     @app_commands.command(
         name="send_server"
     )
-    @app_commands.describe(text="üzenet", channel="melyik csatornába?")  # Lokalizációhoz
+    @app_commands.describe(
+        text="message",
+        channel="which channel?"
+    )
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def send_server_command(interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
@@ -28,11 +31,26 @@ def create_send_server(client):
         if channel is None:
             channel = interaction.channel
 
+        leng_code = language_manager.get_language_for_context(interaction)
+
         try:
+
             # Ellenőrizzük, hogy van-e jogosultságunk webhook létrehozására
             if not channel.permissions_for(interaction.guild.me).manage_webhooks:
-                await interaction.response.send_message("❌ Nincs jogosultságom webhook létrehozására ebben a csatornában!", ephemeral=True)
+                await interaction.followup.send(
+                    language_manager.get_text(leng_code, "server", "webhook_no_perm"),
+                    ephemeral=True
+                )
                 return
+
+            if not channel.permissions_for(interaction.user).send_messages:
+                await interaction.followup.send(
+                    language_manager.get_text(leng_code, "server", "messages_no_perm"),
+                    ephemeral=True
+                )
+
+            if len(text) > 2000:
+                text = text[:2000]
 
             # Webhook létrehozása vagy meglévő használata
             webhooks = await channel.webhooks()
@@ -48,42 +66,61 @@ def create_send_server(client):
             if webhook is None:
                 webhook = await channel.create_webhook(
                     name=interaction.guild.me.display_name,
-                    avatar=await interaction.guild.me.avatar.read() if interaction.guild.me.avatar else None
+                    avatar=await interaction.guild.me.avatar.read()
+                    if interaction.guild.me.avatar
+                    else None
                 )
 
-
-            # Üzenet küldése a webhokon keresztül
+            # Üzenet küldése a webhookon keresztül
             await webhook.send(
                 content=text,
                 username=interaction.user.display_name,
                 avatar_url=interaction.user.display_avatar.url
             )
 
-            await interaction.followup.send(f"✅ Üzenet elküldve a {channel.mention} csatornába!", ephemeral=True)
+            await interaction.followup.send(
+                language_manager.get_text(leng_code, "server", "successful", channel.mention),
+                ephemeral=True
+            )
 
         except discord.Forbidden:
-            await interaction.response.send_message("❌ Nincs jogosultságom ehhez a művelethez!", ephemeral=True)
+            await interaction.followup.send(
+                language_manager.get_text(leng_code, "server", "Forbidden_error"),
+                ephemeral=True
+            )
         except Exception as e:
-            await error(interaction, "send_server_command", e)
-            await interaction.response.send_message(f"❌ Hiba történt")
+            await error(interaction, language_manager.get_text(leng_code, "server", "Error"), e)
+            await interaction.followup.send()
 
     return send_server_command
 
 def register_server_commands(tree, client, guild=None):
-    ping_cmd = create_send_server(client)
+    cmd = create_send_server(client)
+    cmd.default_member_permissions = discord.Permissions(send_messages=True)
+    cmd.default_guild_permissions = discord.Permissions(send_messages=True)
+    cmd.guild_only = True
+    cmd.dm_permission = False
 
+    cmd.description_localizations = {
+        Locale.hungarian: language_manager.get_command_description("hu", cmd.name),
+        Locale.american_english: language_manager.get_command_description("en", cmd.name),
+        Locale.british_english: language_manager.get_command_description("en", cmd.name)
+    }
     # Guild-specifikus description beállítása
     if guild:
         # Szerver nyelve alapján description módosítás
         guild_locale = str(guild.preferred_locale)
+        languages = language_manager.get_all_available_languages()
 
-        if guild_locale == "hu":
-            ping_cmd.description = language_manager.get_command_description("hu", "ping")
-        else:
-            ping_cmd.description = language_manager.get_command_description("en", "ping")
+        for lang in languages:
+            if lang == guild_locale:
+                cmd.description = language_manager.get_command_description(lang, cmd.name)
 
-        tree.add_command(ping_cmd, guild=guild)
+        if guild_locale not in languages:
+            cmd.description = language_manager.get_command_description("en", cmd.name)
+
+        tree.add_command(cmd, guild=guild)
     else:
-        tree.add_command(ping_cmd)
+        tree.add_command(cmd)
 
-    return ping_cmd
+    return cmd
