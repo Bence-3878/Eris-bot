@@ -13,6 +13,7 @@ if __name__ == '__main__':
 from commands.info import register_commands_info, register_dm_commands_info, get_available_commands_info, get_dm_commands_info
 from commands.settings import get_available_commands_settings, get_dm_commands_settings
 from commands.send import register_commands_send, get_available_commands_send
+from commands.moderacio import register_commands_mod, get_available_commands_mod
 
 
 def register_all_commands(tree, client, guild=None, enabled_commands=None):
@@ -30,10 +31,12 @@ def register_all_commands(tree, client, guild=None, enabled_commands=None):
         enabled_commands = guild_settings.get_guild_commands(guild.id)
         register_commands_info(tree, client, guild, enabled_commands)
         register_commands_send(tree, client, guild, enabled_commands)
+        register_commands_mod(tree, client, guild, enabled_commands)
     else:
         # Ha nincs guild, használd az alapértelmezett parancsokat
         register_commands_info(tree, client, guild, get_available_commands_info())
         register_commands_send(tree, client, guild, get_available_commands_send())
+        register_commands_mod(tree, client, guild, get_available_commands_send())
 
 
 def register_all_dm_commands(tree, client):
@@ -60,7 +63,8 @@ def get_all_available_commands():
     """
     info_commands = get_available_commands_info()
     send_commands = get_available_commands_send()
-    command = info_commands + send_commands
+    mod_commands = get_available_commands_mod()
+    command = info_commands + send_commands + mod_commands
     return command
 
 def  get_all_dm_commands():
