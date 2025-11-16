@@ -23,7 +23,6 @@ def create_help_command_guild(client):
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def help_command(interaction: discord.Interaction):
         """Show available commands and their descriptions on servers"""
-        await interaction.response.defer(ephemeral=False)
 
         await help_logic(client,interaction)
 
@@ -41,13 +40,15 @@ def create_help_command_dm(client):
     @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)  # CSAK DM-ekben
     async def help_command(interaction: discord.Interaction):
         """Show available commands and their descriptions in DMs (always in English)"""
-        await interaction.response.defer(ephemeral=False)
 
         await help_logic(client,interaction)
 
     return help_command
 
 async def help_logic(client, interaction: discord.Interaction):
+
+    await interaction.response.defer(ephemeral=False)
+
     # Nyelv meghatározása a szerver alapján
     lang_code = language_manager.get_language_for_context(interaction)
     commands_categories = language_manager.get_all_categories(lang_code)
