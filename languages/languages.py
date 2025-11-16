@@ -9,6 +9,8 @@ if __name__ == '__main__':
 import json
 import os
 from pathlib import Path
+from error import error
+from config import logger
 
 
 class LanguageManager:
@@ -19,6 +21,15 @@ class LanguageManager:
         self.languages = {}
         self.default_language = "en"
         self._load_languages()
+        # Locale mapping (Discord locale -> bot nyelv kód)
+        self.locale_mapping = {
+            "hu": "hu",
+            "en-US": "en",
+            "en-GB": "en",
+            #"de": "de",
+            #"es-ES": "es",
+            #"fr": "fr",
+        }
 
     def _load_languages(self):
         """Összes nyelvi fájl betöltése"""
@@ -59,6 +70,7 @@ class LanguageManager:
             return text
         except (KeyError, IndexError) as e:
             print(f"⚠️ Hiányzó fordítás: {lang_code}/{command}/{key}")
+            logger.error(f"⚠️ Hiányzó fordítás: {lang_code}/{command}/{key}",e)
             # Fallback az angol nyelvre
             try:
                 text = self.languages[self.default_language][self.get_categories(lang_code, command)][command]["responses"][key]
@@ -66,7 +78,9 @@ class LanguageManager:
                     return text.format(*args)
                 return text
             except:
-                return f"[Missing translation: {key}]"
+                category = self.get_categories(self.default_language, command)
+                text = self.languages[self.default_language][category][command]["responses"][key]
+                return text
 
     def get_command_description(self, lang_code, command):
         """Parancs leírásának lekérése"""
@@ -161,20 +175,11 @@ class LanguageManager:
         # Discord guild preferred_locale alapján
         guild_locale = str(interaction.guild.preferred_locale)
         
-        # Locale mapping (Discord locale -> bot nyelv kód)
-        locale_mapping = {
-            "hu": "hu",
-            "en-US": "en",
-            "en-GB": "en",
-            #"de": "de",
-            #"es-ES": "es",
-            #"fr": "fr",
-        }
 
         # 1. ELSŐDLEGES: Felhasználó nyelve (interaction.locale)
         #    Ez a felhasználó Discord kliens nyelvbeállítása
         user_locale = str(interaction.locale)
-        user_lang = locale_mapping.get(user_locale, None)
+        user_lang = self.locale_mapping.get(user_locale, None)
 
         if user_lang and user_lang in self.languages:
             return user_lang
@@ -182,13 +187,18 @@ class LanguageManager:
         # 2. MÁSODLAGOS: Ha szerveren vagyunk, szerver nyelve
         if interaction.guild is not None:
             guild_locale = str(interaction.guild.preferred_locale)
-            guild_lang = locale_mapping.get(guild_locale, None)
+            guild_lang = self.locale_mapping.get(guild_locale, None)
 
             if guild_lang and guild_lang in self.languages:
                 return guild_lang
 
         # 3. ALAPÉRTELMEZETT: angol
         return self.default_language
+    
+    def discord_lang_code(self, lang_code):
+        # Saját mappás kódot átalakítjuk Discord szerinti kódra
+        locale_dict = {v: k for k, v in self.locale_mapping.items()}
+        return locale_dict.get(lang_code, "en-US")
 
 # Globális language_manager példány létrehozása
 language_manager = LanguageManager()
