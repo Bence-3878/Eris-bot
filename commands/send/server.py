@@ -19,8 +19,10 @@ def create_send_server(client):
     @app_commands.describe(text="üzenet", channel="melyik csatornába?")  # Lokalizációhoz
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
-    async def send_server_command(interaction: discord.Interaction, text: str, channel: discord.TextChannel):
+    async def send_server_command(interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
         """Show available commands and their descriptions on servers"""
+        if channel is None:
+            channel = interaction.channel
 
         try:
             # Ellenőrizzük, hogy van-e jogosultságunk webhook létrehozására
